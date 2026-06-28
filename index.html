@@ -18,7 +18,7 @@
 
     /* --- FILTRES HORIZONTAUX --- */
     .filters-bar { display: flex; flex-direction: row; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
-    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 300px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 350px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .filter-card label { 
   font-size: 11px; font-weight: bold; color: #555; margin-bottom: 8px; 
   text-transform: uppercase; letter-spacing: 0.5px;
@@ -332,9 +332,7 @@
       <div class="input-with-btn">
         <select id="projet-select" class="search-input"><option value="">Choisir...</option></select>
         <button class="add-btn" onclick="openModal('projet')" title="Créer un projet">+</button>
-        <button class="add-btn" id="btn-edit-projet" onclick="openModal('edit_projet')" title="Modifier le projet sélectionné" disabled>✏️</button>
-        <!-- NOUVEAU BOUTON : Afficher la carte Drawflow du projet -->
-        <button class="add-btn" id="btn-map-projet" onclick="openModal('drawflow_map')" title="Carte des affaires du projet" style="background-color: var(--secondary);" disabled>🗺️</button>
+        <button class="add-btn" id="btn-edit-projet" onclick="openModal('edit_projet')" title="Modifier le projet sélectionné" disabled>✏️</button>       
       </div>
     </div>
 
@@ -344,19 +342,19 @@
         <select id="affaire-select" class="search-input"><option value="">Choisir...</option></select>
         <button class="add-btn" onclick="openModal('affaire')" title="Créer une affaire">+</button>
         <button class="add-btn" id="btn-edit-affaire" onclick="openModal('edit_affaire')" title="Modifier l'affaire sélectionnée" disabled>✏️</button>
-        <button class="add-btn" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary);" disabled>🗺️</button>
+        <button class="add-btn" id="btn-map-projet" onclick="openModal('drawflow_map')" title="Carte des affaires du projet" style="background-color: var(--secondary);" disabled>🗺️</button>
       </div>
     </div>
     
-    <div class="affaire-actions-card">
+    <!-- <div class="affaire-actions-card">
       <label>🛃 Actions sur l'affaire</label>
       <button id="btn-add-livrable" class="btn-text-add" onclick="openModal('livrable')">📃 + Nouveau livrable</button>
-    </div>
+    </div> -->
     
     <div class="affaire-infos-card">
       <label>ℹ️ Infos sur l'affaire</label>
       <button id="btn-add-livrable" class="btn-text-add" onclick="openModal('livrable')" style="width:100%;">
-        <span style="display:flex; align-items:center; gap:5px;">📃 + Nouveau livrable</span> 
+        <span style="display:flex; align-items:center; gap:5px;">📃 Nouveau livrable</span> 
       </button>
       <button id="btn-add-contact" class="btn-text-add" onclick="openModal('contact_affaire')" style="width:100%;">
         <span style="display:flex; align-items:center; gap:5px;">👤 Contacts client</span> 
@@ -370,6 +368,7 @@
         <span style="display:flex; align-items:center; gap:5px;">💲 Suivi économique</span> 
         <span id="badge-suivi" class="btn-badge" style="display:none;">0</span>
       </button>
+      <button class="add-btn" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary); width: 100%;" disabled>🗺️</button>
     </div>
   </div>
 
