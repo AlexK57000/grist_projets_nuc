@@ -1,0 +1,3303 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  
+  <!-- === DRAWFLOW CSS & JS === -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #16a085; --primary-hover: #138a72;--secondary: #2471a3;
+      --jalon-color: #9b59b6; --exec-color: #2ecc71; --dep-color: #7f8c8d;
+      --contractual-color: #D0EFEA; /* Vert anis clair */
+    }
+    body { margin: 0; padding: 20px; font-family: "Segoe UI", sans-serif; background: #f4f7f6; display: flex; flex-direction: column; gap: 20px; }
+
+    /* --- FILTRES HORIZONTAUX --- */
+    .filters-bar { display: flex; flex-direction: row; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
+    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 300px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .filter-card label { 
+  font-size: 11px; font-weight: bold; color: #555; margin-bottom: 8px; 
+  text-transform: uppercase; letter-spacing: 0.5px;
+  display: flex; align-items: center; justify-content: space-between; /* Aligne le badge à droite */
+}
+.filter-badge {
+  background: #eaf2f8; color: #2980b9; border-radius: 10px;
+  padding: 1px 6px; font-size: 10px; font-weight: bold;
+}
+    .input-with-btn { display: flex; gap: 8px; width: 100%; }
+    
+    select, .search-input { padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px; background: white; width: 100%; outline: none; box-sizing: border-box; }
+    select:disabled { background: #f8f9fa; color: #a0aab5; border-color:#e0e6ed; }
+    select:focus, .search-input:focus { border-color: var(--primary); }
+
+    /* Recherche Client */
+    .search-container { position: relative; flex-grow: 1; }
+    .search-options { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; max-height: 200px; overflow-y: auto; display: none; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px; }
+    .option-item { padding: 8px; font-size: 13px; cursor: pointer; }
+    .option-item:hover { background-color: #f0f4f7; }
+    .option-item.selected { background-color: var(--primary); color: white; }
+
+    /* Boutons */
+    .add-btn { background: var(--primary); color: white; border: none; border-radius: 4px; width: 34px; cursor: pointer; font-size: 18px; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: background 0.2s; flex-shrink: 0; }
+    .add-btn:hover:not(:disabled) { background: var(--primary-hover); }
+    .add-btn:disabled { background: #bdc3c7; cursor: not-allowed; } 
+    
+    .btn-text-add { background: var(--primary); color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: background 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-text-add:hover:not(:disabled) { background: #138a72; }
+    .btn-text-add:disabled { background: #bdc3c7; cursor: not-allowed; }
+    .btn-text-add.secondary { background: var(--secondary); }
+    .btn-text-add.secondary:hover { background: #1a5276; }
+    .btn-text-add.danger { background: #e74c3c; }
+    .btn-text-add.danger:hover { background: #c0392b; }
+    .btn-text-add.orange { background: #e67e22; }
+    .btn-text-add.orange:hover { background: #d35400; }
+
+    /* Carte actions affaire */
+    .affaire-actions-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .affaire-actions-card label { font-size: 11px; font-weight: bold; color: #555; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Carte infos affaire */
+    .affaire-infos-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-left: auto; }
+    .affaire-infos-card label { font-size: 11px; font-weight: bold; color: #555; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* --- SECTION LIVRABLES & TACHES --- */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #e0e6ed; }
+    .section-header h2 { margin: 0; font-size: 15px; color: #333; text-transform: uppercase; }
+    
+    .tasks-table-header { border-bottom: 2px solid #3498db; margin-bottom: 10px; padding-bottom: 5px; display: flex; align-items: center; justify-content: space-between; }
+    .tasks-table-header h2 { margin: 0; font-size: 15px; color: #2980b9; text-transform: uppercase; }
+    
+    .table-container { background: white; border-radius: 8px; border: 1px solid #e0e6ed; overflow-x: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .table-container.blue-border { border: 1px solid #3498db; box-shadow: 0 2px 4px rgba(52, 152, 219, 0.1); }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: bold; color: #555; text-transform: uppercase; font-size: 11px; white-space: nowrap; }
+    .tasks-thead { background: #eaf2f8; }
+    .tasks-thead th { color: #2980b9; }
+    
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background-color: #fcfcfc; }
+    .empty-state { text-align: center; color: #999; padding: 20px; font-style: italic; }
+    
+    .livrable-link { color: #2980b9; text-decoration: none; font-weight: bold; cursor: pointer; }
+    .livrable-link:hover { text-decoration: underline; }
+
+    .bottom-actions { margin-top: 10px; display: flex; gap: 10px; }
+
+    /* --- MODALS --- */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center}
+    .modal-content { background: white; padding: 20px; border-radius: 8px; width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+    
+    .modal-content.large { width: 95vw; max-width: 1800px; height: 90vh; display: flex; flex-direction: column; }
+    .modal-content.medium { width: 50vw; }
+    /* Étirer le corps des deux modales (affaires et livrables) sur toute la hauteur disponible */
+    #modal-body.full-height, #modal-body-stacked.full-height { 
+      flex: 1; 
+      min-height: 0; 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
+    }
+
+    .modal-content h3 { margin: 0 0 5px 0; font-size: 16px; color: #333; }
+    .modal-field { display: flex; flex-direction: column; gap: 5px; }
+    .modal-field label { font-size: 11px; font-weight: bold; color: #666; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .modal-actions button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-cancel { background: #e0e0e0; color: #333; }
+    .btn-save { background: var(--primary); color: white; }
+    .btn-cancel:hover { background: #ccc; }
+    .btn-save:hover { background: var(--primary-hover); }
+
+    /* Sous-section dans un modal */
+    .modal-section { border-top: 2px solid #f0f0f0; padding-top: 12px; margin-top: 4px; }
+    .modal-section-title { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .modal-section-title .badge { background: var(--primary); color: white; border-radius: 10px; padding: 1px 7px; font-size: 10px; }
+
+    /* Tableau contacts dans modal */
+    .contacts-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+    .contacts-table th { background: #f8f9fa; font-weight: bold; color: #666; padding: 6px 8px; border-bottom: 1px solid #e0e6ed; text-transform: uppercase; font-size: 10px; }
+    .contacts-table td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .contacts-table tr:last-child td { border-bottom: none; }
+    .contacts-table tr:hover td { background: #fcfcfc; }
+
+    /* Sous-modal Édition Tâche */
+    #task-modal .modal-content { width: 840px; max-width: 95vw; }
+    .task-name-link { cursor: pointer; color: #2980b9; transition: color 0.2s; }
+    .task-name-link:hover { color: #1a5276; text-decoration: underline; }
+    .dep-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .dep-list li { display: flex; justify-content: space-between; background: #f9f9fa; padding: 6px 10px; border-radius: 4px; align-items: center; border: 1px solid #e0e6ed; }
+    .btn-remove { background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-weight: bold; font-size: 10px; }
+    .btn-remove:hover { background: #c0392b; }
+    
+    .two-col { display: flex; gap: 20px; margin-top: 15px; }
+    .col { flex: 1; background: #fff; padding: 15px; border: 1px solid #e0e6ed; border-radius: 6px; box-shadow: inset 0 0 5px rgba(0,0,0,0.01); }
+    .col-title { font-size: 12px; font-weight: bold; color: #333; margin-bottom: 10px; text-transform: uppercase; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
+
+    /* --- WIZARD --- */
+    .wizard-container { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:20px; text-align:center; }
+    .wizard-step-info { font-size:13px; color:#666; font-style:italic; }
+
+    /* --- GANTT PREVIEW AVEC FLEXBOX ET RESIZER --- */
+    .gantt-grid { display: flex; flex-direction: row; flex-grow: 1; min-height: 0; }
+    .tasks-list { min-width: 280px; flex-shrink: 0; background: #f9f9fa; border: 1px solid #e0e6ed; border-radius: 4px 0 0 4px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; padding: 0; position: relative; display: flex; flex-direction: column; }
+    .resizer { width: 6px; background: #e0e6ed; cursor: col-resize; flex-shrink: 0; transition: background 0.2s; z-index: 10; border-top: 1px solid #e0e6ed; border-bottom: 1px solid #e0e6ed; }
+    .resizer:hover, .resizer:active { background: var(--primary); }
+    .gantt-container { flex-grow: 1; overflow: auto; background: white; border: 1px solid #e0e6ed; border-left: none; border-radius: 0 4px 4px 0; position: relative; box-sizing: border-box; }
+    
+    .task-list-header { height: 50px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; border-bottom: 1px solid #e0e6ed; font-size: 16px; font-weight: bold; color: #666; background: #f9f9fa; position: sticky; top: 0; z-index: 10; box-sizing: border-box; }
+    
+    /* Animation de surbrillance */
+    .task-item { display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 10px; border-bottom: 1px solid #eee; font-size: 12px; box-sizing: border-box; white-space: nowrap; transition: background-color 0.2s; }
+    .task-item.highlight { background-color: #eaf2f8 !important; border-left: 3px solid #3498db; padding-left: 7px; }
+    .jalon-item { background: #fdfaff; border-left: 3px solid var(--jalon-color); }
+    .jalon-item.highlight { background-color: #f4ebfa !important; border-left: 3px solid var(--jalon-color); padding-left: 10px; }
+    
+    /* Ligne de fond du Gantt au survol */
+    .gantt-row-hover { cursor: default; transition: fill 0.2s; }
+    .gantt-row-hover:hover { fill: rgba(0, 0, 0, 0.03); }
+
+    .input-group { display: flex; gap: 6px; align-items: center; justify-content: flex-start; width: 185px; flex-shrink: 0; margin-left: 10px; }
+    .input-group-jalon { display: flex; gap: 5px; align-items: center; justify-content: flex-end; width: 300px; flex-shrink: 0; margin-left:10px; }
+
+    .input-duree { width: 46px; padding: 4px; box-sizing: border-box; text-align: center; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; outline: none; }
+    .input-duree:focus { border-color: var(--primary); }
+    .lag-input { background: #eef2f5; border: 1px solid #cbd4d4; color: #7f8c8d; }
+    .duration-input { font-weight: bold; border-color: #aaa; background: white; }
+    .input-date { width: 105px; padding: 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; }
+    
+    .gantt-line { stroke: #e0e0e0; stroke-width: 1; }
+    .gantt-month { font-size: 11px; font-weight: bold; fill: #555; }
+    .gantt-day { font-size: 9px; text-anchor: middle; }
+    .gantt-bar-contractual { fill: var(--contractual-color); pointer-events: none; }
+    .gantt-bar-operational { fill: var(--primary);opacity: 1;; pointer-events: none; }
+    .gantt-jalon { fill: var(--jalon-color); pointer-events: none; }
+
+    /* Badges pour les boutons Actions */
+    .btn-badge { display: inline-flex; align-items: center; justify-content: center; background: white; color: #2c3e50; border-radius: 12px; padding: 1px 6px; font-size: 11px; margin-left: auto; font-weight: bold; min-width: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .btn-badge.alert { background: #e74c3c !important; color: white !important; }
+
+    /* Classes pour la coloration des lignes des livrables */
+    .row-no-tasks td { background-color: #e3fcee; }
+    .row-no-tasks:hover td { background-color: #cffce3; }
+    .row-draft-tasks td { background-color: #fcf7e3; }
+    .row-draft-tasks:hover td { background-color: #fff5cf; }
+    .row-real-tasks td { background-color: #f0f4f8; }
+    .row-real-tasks:hover td { background-color: #f0f4f8; }
+
+    /* --- STYLES DRAWFLOW POUR LA MODALE --- */
+    /* Appliquer les styles et le positionnement relatif requis à tous les canvas Drawflow */
+    #drawflow, #drawflow-container, #drawflow-container-livrables { 
+      width: 100%; 
+      height: 100%; 
+      background-size: 25px 25px; 
+      background-image: radial-gradient(#e2e8f0 1px, transparent 1px); 
+      background-color: #f8fafc; 
+      position: relative; 
+      border-radius: 8px; 
+      overflow: hidden; 
+      border: 1px solid #e0e6ed; 
+    }
+    .drawflow .drawflow-node { display: flex; flex-direction: column; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); min-width: 220px; max-width: 280px; color: #1e293b; z-index: 2; }
+    .drawflow .drawflow-node:hover { border-color: #94a3b8; }
+    .drawflow .drawflow-node.selected {
+      background-color: var(--contractual-color) !important;
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.3) !important; /* Lueur verte */
+    }
+    .drawflow-card-content { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+    .drawflow-node-title { font-weight: 700; color: #0f172a; font-size: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 4px; word-wrap: break-word; }
+    .drawflow-node-details { display: flex; flex-direction: column; gap: 4px; }
+    .drawflow-node-detail { font-size: 15px; color: #475569; display: flex; justify-content: space-between; gap: 10px; }
+    .drawflow-node-detail strong { color: #64748b; }
+    .drawflow-rating-badge { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 15px; color: #0f172a; }
+    .drawflow .drawflow-node .inputs, .drawflow .drawflow-node .outputs { position: absolute; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: center; width: auto; height: auto; z-index: 5; }
+    .drawflow .drawflow-node .inputs { top: -6px; }
+    .drawflow .drawflow-node .outputs { bottom: -6px; }
+    .drawflow .drawflow-node .input, .drawflow .drawflow-node .output { position: relative; top: 0 !important; left: 0 !important; right: 0 !important; margin: 0 !important; width: 12px; height: 12px; border: 2px solid #ffffff; border-radius: 50%; }
+    .drawflow .drawflow-node .input { background: #3b82f6; }
+    .drawflow .drawflow-node .output { background: #10b981; }
+    .drawflow_delete_node { display: none !important; }
+    .drawflow .connection .main-path { stroke: #64748b; stroke-width: 3px; }
+    .drawflow .connection .main-path:hover { stroke: #ef4444; cursor: pointer; }
+    .drawflow .connection.selected .main-path { stroke: #ef4444; }
+    /* Couleur de fond des cartes sélectionnées (remplace le rouge flashy par le vert anis clair de l'application) */
+    
+    .drawflow-toolbar { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+    .drawflow-toolbar button { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; width: 36px; height: 36px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s; }
+    .drawflow-toolbar button:hover { background: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
+    /* Bouton œil (point jaune) sur la carte affaire */
+    .drawflow-node-eye-btn {
+      display: none; /* Masqué par défaut */
+      position: absolute;
+      right: -22px;
+      top: 18px; /* Positionné juste en dessous du bouton de suppression natif */
+      background: #f1c40f; /* Couleur jaune */
+      color: #2c3e50;
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 10;
+      transition: transform 0.1s ease;
+    }
+
+    .drawflow-node-eye-btn:hover {
+      transform: scale(1.1);
+      background: #f39c12;
+    }
+
+    /* Affiche l'œil au survol de la carte OU lorsque la carte est sélectionnée */
+    .drawflow-node:hover .drawflow-node-eye-btn,
+    .drawflow-node.selected .drawflow-node-eye-btn {
+      display: flex;
+    }
+
+    /* Alignement du titre de la carte et du badge */
+    .drawflow-node-title {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Style du badge de nombre de livrables */
+    .drawflow-node-liv-badge {
+      background: #eaf2f8;
+      color: #2980b9;
+      border: 1px solid #d4e6f1;
+      border-radius: 12px;
+      padding: 2px 6px;
+      font-size: 12px;
+      font-weight: bold;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    /* --- REGLES POUR L'EXPORT PDF NATIVE --- */
+    @media print {
+      @page { size: landscape; margin: 5mm; }
+      body.is-printing > :not(#modal) { display: none !important; }
+      body.is-printing { background: white; margin: 0; padding: 0; overflow: visible !important; height: auto !important; }
+      body.is-printing #modal { position: relative !important; display: block !important; width: max-content !important; height: auto !important; background: transparent !important; }
+      body.is-printing #modal-box { width: max-content !important; max-width: none !important; height: auto !important; max-height: none !important; display: block !important; box-shadow: none !important; border: none !important; margin: 0 !important; }
+      body.is-printing #modal-body { overflow: visible !important; display: block !important; height: auto !important; }
+      body.is-printing .gantt-grid { display: flex !important; width: max-content !important; height: auto !important; overflow: visible !important; }
+      body.is-printing .tasks-list { width: auto !important; height: auto !important; max-height: none !important; overflow: visible !important; border-right: 1px solid #ccc; }
+      body.is-printing .gantt-container { width: max-content !important; height: auto !important; max-height: none !important; overflow: visible !important; border: none !important; }
+      body.is-printing .modal-actions, body.is-printing .resizer, body.is-printing .btn-remove, body.is-printing .task-list-header button { display: none !important; }
+      body.is-printing input, body.is-printing select { border: none !important; background: transparent !important; color: black; appearance: none; -webkit-appearance: none; pointer-events: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRE DE FILTRES EN LIGNE -->
+  <div class="filters-bar">
+    <div class="filter-card">
+      <label>Client</label>
+      <div class="input-with-btn">
+        <div class="search-container">
+          <input type="text" id="client-search" class="search-input" placeholder="Chercher un client..." autocomplete="off">
+          <div id="client-options" class="search-options"></div>
+        </div>
+        <button class="add-btn" onclick="openModal('client')" title="Créer un client">+</button>
+        <button class="add-btn" id="btn-edit-client" onclick="openModal('edit_client')" title="Modifier le client sélectionné" disabled>✏️</button>
+      </div>
+      <select id="client-select" style="display: none;"><option value="">Choisir...</option></select>
+    </div>
+
+    <div class="filter-card">
+      <label>Contrat <span id="badge-count-contrat" class="filter-badge" style="display:none;">0</span></label>
+      <div class="input-with-btn">
+        <select id="contrat-select" class="search-input"><option value="">Choisir...</option></select>
+        <button class="add-btn" onclick="openModal('contrat')" title="Créer un contrat">+</button>
+        <button class="add-btn" id="btn-edit-contrat" onclick="openModal('edit_contrat')" title="Modifier le contrat sélectionné" disabled>✏️</button>
+      </div>
+    </div>
+
+    <div class="filter-card">
+      <label>Projet <span id="badge-count-projet" class="filter-badge" style="display:none;">0</span></label>
+      <div class="input-with-btn">
+        <select id="projet-select" class="search-input"><option value="">Choisir...</option></select>
+        <button class="add-btn" onclick="openModal('projet')" title="Créer un projet">+</button>
+        <button class="add-btn" id="btn-edit-projet" onclick="openModal('edit_projet')" title="Modifier le projet sélectionné" disabled>✏️</button>
+        <!-- NOUVEAU BOUTON : Afficher la carte Drawflow du projet -->
+        <button class="add-btn" id="btn-map-projet" onclick="openModal('drawflow_map')" title="Carte des affaires du projet" style="background-color: var(--secondary);" disabled>🗺️</button>
+      </div>
+    </div>
+
+    <div class="filter-card">
+      <label>Affaire <span id="badge-count-affaire" class="filter-badge" style="display:none;">0</span></label>
+      <div class="input-with-btn">
+        <select id="affaire-select" class="search-input"><option value="">Choisir...</option></select>
+        <button class="add-btn" onclick="openModal('affaire')" title="Créer une affaire">+</button>
+        <button class="add-btn" id="btn-edit-affaire" onclick="openModal('edit_affaire')" title="Modifier l'affaire sélectionnée" disabled>✏️</button>
+        <button class="add-btn" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary);" disabled>🗺️</button>
+      </div>
+    </div>
+    
+    <div class="affaire-actions-card">
+      <label>🛃 Actions sur l'affaire</label>
+      <button id="btn-add-livrable" class="btn-text-add" onclick="openModal('livrable')">📃 + Nouveau livrable</button>
+    </div>
+    
+    <div class="affaire-infos-card">
+      <label>ℹ️ Infos sur l'affaire</label>
+      <button id="btn-add-contact" class="btn-text-add" onclick="openModal('contact_affaire')" style="width:100%;">
+        <span style="display:flex; align-items:center; gap:5px;">👤 Contacts client</span> 
+        <span id="badge-contact" class="btn-badge" style="display:none;">0</span>
+      </button>
+      <button id="btn-add-plan" class="btn-text-add" onclick="openModal('plan_action')" style="width:100%;">
+        <span style="display:flex; align-items:center; gap:5px;">⚠️ Plan d'action</span> 
+        <span id="badge-plan" class="btn-badge" style="display:none;">0</span>
+      </button>
+      <button id="btn-add-suivi" class="btn-text-add" onclick="openModal('suivi_eco')" style="width:100%;">
+        <span style="display:flex; align-items:center; gap:5px;">💲 Suivi économique</span> 
+        <span id="badge-suivi" class="btn-badge" style="display:none;">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION LIVRABLES -->
+  <div>
+    <div class="section-header">
+      <h2>Livrables de l'affaire</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;">Sélection</th>
+            <th>Nom du livrable</th>
+            <th>Type d'étude</th>
+            <th>Indice</th>
+            <th>Chargé d'étude</th>
+            <th>Date GO</th>
+            <th>Deadline Prév</th>
+            <th>Deadline Corrigée</th>
+            <th style="width: 30px;"></th>
+          </tr>
+        </thead>
+        <tbody id="livrables-tbody">
+          <tr><td colspan="9" class="empty-state">Chargement des données...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="bottom-actions">
+      <button id="btn-generate-tasks" class="btn-text-add" disabled onclick="openModal('generate_tasks')">⚡ Générer les tâches à partir d'un preset</button>
+      <button id="btn-estimate-resources" class="btn-text-add orange" style="display: none;" onclick="openModal('estimate_resources')">⏱️ Estimation des ressources</button>
+    </div>
+  </div>
+
+  <!-- SECTION: TABLEAU DES TÂCHES -->
+  <div id="tasks-container" style="display: none; margin-top: 25px;">
+    <div class="tasks-table-header">
+      <h2>Tâches du livrable</h2>
+    </div>
+    <div class="table-container blue-border">
+      <table>
+        <thead class="tasks-thead">
+          <tr>
+            <th>Nom de la tâche</th>
+            <th>Assigné à</th>
+            <th>Statut</th>
+            <th>Deadline courante (J)</th>
+            <th>Durée contractuelle (J)</th>
+            <th>Lag Avant</th>
+            <th>Lag Après</th>
+            <th>Durée opérationnelle (J)</th>
+            <th>Terminé</th>
+          </tr>
+        </thead>
+        <tbody id="tasks-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="debug-msg" style="font-size: 9px; color: #aaa; text-align: right; margin-top:10px;"></div>
+
+  <!-- Modal Universel (Gantt, Ajouts, Drawflow...) -->
+  <div id="modal" class="modal-overlay">
+    <div id="modal-box" class="modal-content">
+      <h3 id="modal-title">Titre</h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions-container">
+        <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="btn-save" id="modal-save-btn">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sous-Modal Édition de Tâche -->
+  <div id="task-modal" class="modal-overlay" style="z-index: 10001;">
+    <div class="modal-content">
+      <h3 id="task-modal-title">Modifier la tâche</h3>
+      <div id="task-modal-body"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="cancelTaskModal()">Annuler</button>
+        <button class="btn-save" onclick="closeTaskModal()">Appliquer & Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Stacked (Livrables par-dessus les Affaires) -->
+  <div id="modal-stacked" class="modal-overlay" style="z-index: 10005;">
+    <div id="modal-box-stacked" class="modal-content large">
+      <h3 id="modal-title-stacked">Titre</h3>
+      <div id="modal-body-stacked" class="full-height"></div>
+      <div class="modal-actions" id="modal-actions-container-stacked">
+        <button class="btn-cancel" onclick="closeStackedModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+   const clientSel = document.getElementById('client-select');
+    const contratSel = document.getElementById('contrat-select');
+    const projetSel = document.getElementById('projet-select');
+    const affaireSel = document.getElementById('affaire-select');
+    const clientSearch = document.getElementById('client-search');
+    const clientOptions = document.getElementById('client-options');
+    const debugMsg = document.getElementById('debug-msg');
+    const tbodyLivrables = document.getElementById('livrables-tbody');
+    const btnGenerate = document.getElementById('btn-generate-tasks');
+    const btnEstimateResources = document.getElementById('btn-estimate-resources');
+    const tasksContainer = document.getElementById('tasks-container');
+    const tbodyTasks = document.getElementById('tasks-tbody');
+
+    let tableData = {
+      clients: [], contrats: [], projets: [], affaires: [], employes: [],
+      types_livrable: [], livrables: [], presets: [], jalons: [], taches: [],
+      contacts_client: [], contact_client_sur_affaire: [], previsionnel: [],
+      plan_action: [], suivi_economique: [], 
+      taches_brouillons: [], jalons_brouillons: [], matrice_competences: []
+    };
+    let optionsData = [];
+    let isInternalChange = false;
+    let isFirstLoad = true;
+    let selectedLivrableId = null;
+
+    // --- Helpers Données & Dates ---
+    function transpose(data) {
+      if (!data || !data.id) return [];
+      return data.id.map((id, index) => {
+        let row = { id };
+        for (let key in data) if (key !== 'id') row[key] = data[key][index];
+        return row;
+      });
+    }
+
+    function formatDate(val) {
+      if (!val) return '-';
+      const d = typeof val === 'number' ? new Date(val * 1000) : new Date(val);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('fr-FR');
+    }
+
+    function toYYYYMMDD(d) {
+      if (!d || isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function toGristTs(date) {
+      if (!date) return null;
+      return Math.floor(date.getTime() / 1000);
+    }
+
+    function getEmployesByFonction(fonctionName) {
+      return tableData.employes.filter(emp => {
+        if (!emp.fonction) return false;
+        if (Array.isArray(emp.fonction)) return emp.fonction.some(f => typeof f === 'string' && f.toLowerCase().includes(fonctionName.toLowerCase()));
+        return String(emp.fonction).toLowerCase().includes(fonctionName.toLowerCase());
+      }).sort((a, b) => String(a.nom_employe || '').localeCompare(String(b.nom_employe || '')));
+    }
+
+    function getEmployesFromMatrix(fonctionName) {
+      const validIds = new Set();
+      tableData.matrice_competences.forEach(m => {
+        let mFonctions = Array.isArray(m.fonction) ? m.fonction : [m.fonction];
+        if (mFonctions.some(f => f && typeof f === 'string' && f.toLowerCase().includes(fonctionName.toLowerCase())) && m.employe) {
+          validIds.add(m.employe);
+        }
+      });
+      return tableData.employes.filter(e => validIds.has(e.id)).sort((a,b) => String(a.nom_employe||'').localeCompare(String(b.nom_employe||'')));
+    }
+
+    function getEntityName(id, type) {
+      const coll = tableData[type + 's'];
+      const item = coll ? coll.find(x => x.id == id) : null;
+      if (!item) return '';
+      if (type === 'client') return item.nom_client;
+      return '';
+    }
+
+    function addBusinessDays(startDate, daysToAdd) {
+      if (!startDate) return new Date();
+      let d = new Date(startDate.getTime());
+      while (d.getDay() === 0 || d.getDay() === 6) { d.setDate(d.getDate() + 1); }
+      let added = 0;
+      while (added < daysToAdd) {
+        d.setDate(d.getDate() + 1);
+        if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+      }
+      return d;
+    }
+
+    function subtractBusinessDays(endDate, daysToSubtract) {
+      if (!endDate) return new Date();
+      let d = new Date(endDate.getTime());
+      while (d.getDay() === 0 || d.getDay() === 6) { d.setDate(d.getDate() - 1); }
+      let subtracted = 0;
+      while (subtracted < daysToSubtract) {
+        d.setDate(d.getDate() - 1);
+        if (d.getDay() !== 0 && d.getDay() !== 6) subtracted++;
+      }
+      return d;
+    }
+
+    function persistSelection() {
+      localStorage.setItem('gantt_nav_state', JSON.stringify({ c: clientSel.value, co: contratSel.value, p: projetSel.value, a: affaireSel.value, l: selectedLivrableId }));
+    }
+
+    // --- Activer/Désactiver les boutons d'édition ---
+    function updateEditButtonsState() {
+      const btnEditClient = document.getElementById('btn-edit-client');
+      const btnEditContrat = document.getElementById('btn-edit-contrat');
+      const btnEditProjet = document.getElementById('btn-edit-projet');
+      const btnMapProjet = document.getElementById('btn-map-projet'); // Nouveau bouton Drawflow
+      const btnMapAffaire = document.getElementById('btn-map-affaire');
+      const btnEditAffaire = document.getElementById('btn-edit-affaire');
+      const btnAddLivrable = document.getElementById('btn-add-livrable');
+      const btnAddContact = document.getElementById('btn-add-contact'); 
+      const btnAddPlan = document.getElementById('btn-add-plan');
+      const btnAddSuivi = document.getElementById('btn-add-suivi');
+      
+
+      if (btnEditClient) btnEditClient.disabled = !clientSel.value;
+      if (btnEditContrat) btnEditContrat.disabled = !contratSel.value;
+      if (btnEditProjet) btnEditProjet.disabled = !projetSel.value;
+      if (btnMapProjet) btnMapProjet.disabled = !projetSel.value;
+      if (btnEditAffaire) btnEditAffaire.disabled = !affaireSel.value;
+      if (btnAddLivrable) btnAddLivrable.disabled = !affaireSel.value;
+      if (btnAddContact) btnAddContact.disabled = !affaireSel.value;
+      if (btnAddPlan) btnAddPlan.disabled = !affaireSel.value;
+      if (btnAddSuivi) btnAddSuivi.disabled = !affaireSel.value;
+      if (btnMapAffaire) btnMapAffaire.disabled = !affaireSel.value;
+    }
+
+    function restoreSelection() {
+      const saved = localStorage.getItem('gantt_nav_state');
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.c) { 
+          clientSel.value = state.c; 
+          const c = tableData.clients.find(x => x.id == state.c); 
+          if (c) clientSearch.value = c.nom_client; 
+        }
+        updateCascade(true);
+        if (state.co) { contratSel.value = state.co; updateCascade(true); }
+        if (state.p) { projetSel.value = state.p; updateCascade(true); }
+        if (state.a) { 
+          affaireSel.value = state.a; 
+          if (state.l) selectedLivrableId = parseInt(state.l);
+          renderLivrables(); 
+        }
+      }
+      if (typeof updateEditButtonsState === 'function') updateEditButtonsState();
+    }
+
+    // --- Fetch Grist ---
+    async function refreshData(preserveSelection = true) {
+      const c = clientSel.value, co = contratSel.value, p = projetSel.value, a = affaireSel.value, l = selectedLivrableId;
+      debugMsg.textContent = "Actualisation...";
+
+      const [
+        clients, contrats, projets, affaires, employes, types_livrable,
+        livrables, presets, jalons, taches, contacts_client, contact_client_sur_affaire,
+        previsionnel, plan_action, suivi_economique, taches_brouillons, jalons_brouillons, matrice_competences
+      ] = await Promise.all([
+        grist.docApi.fetchTable('Clients'),
+        grist.docApi.fetchTable('Contrats'),
+        grist.docApi.fetchTable('Projets'),
+        grist.docApi.fetchTable('Affaires'),
+        grist.docApi.fetchTable('Employes'),
+        grist.docApi.fetchTable('Types_livrable'),
+        grist.docApi.fetchTable('Livrables'),
+        grist.docApi.fetchTable('Presets_liste_taches'),
+        grist.docApi.fetchTable('Jalons'),
+        grist.docApi.fetchTable('Taches'),
+        grist.docApi.fetchTable('Contacts_client'),
+        grist.docApi.fetchTable('Contact_client_sur_affaire'),
+        grist.docApi.fetchTable('Previsionnel_charges_ressources'),
+        grist.docApi.fetchTable('Plan_action'),
+        grist.docApi.fetchTable('Suivi_economique'),
+        grist.docApi.fetchTable('Taches_brouillons'), 
+        grist.docApi.fetchTable('Jalons_brouillons'),
+        grist.docApi.fetchTable('Matrice_competences')
+      ]);
+
+      tableData.clients = transpose(clients);
+      tableData.contrats = transpose(contrats);
+      tableData.projets = transpose(projets);
+      tableData.affaires = transpose(affaires);
+      tableData.employes = transpose(employes);
+      tableData.types_livrable = transpose(types_livrable);
+      tableData.livrables = transpose(livrables);
+      tableData.presets = transpose(presets);
+      tableData.jalons = transpose(jalons);
+      tableData.taches = transpose(taches);
+      tableData.contacts_client = transpose(contacts_client);
+      tableData.contact_client_sur_affaire = transpose(contact_client_sur_affaire);
+      tableData.previsionnel = transpose(previsionnel);
+      tableData.plan_action = transpose(plan_action);
+      tableData.suivi_economique = transpose(suivi_economique);
+      tableData.taches_brouillons = transpose(taches_brouillons);
+      tableData.jalons_brouillons = transpose(jalons_brouillons);
+      tableData.matrice_competences = transpose(matrice_competences);
+
+      optionsData = [...tableData.clients]
+        .sort((a, b) => String(a.nom_client || '').localeCompare(String(b.nom_client || '')))
+        .map(x => ({ value: x.id, text: x.nom_client }));
+
+      clientSel.innerHTML = '<option value="">Choisir...</option>';
+      optionsData.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.text;
+        clientSel.appendChild(o);
+      });
+
+      if (preserveSelection) {
+        if (c) clientSel.value = c;
+        updateCascade(true);
+        if (co) contratSel.value = co;
+        updateCascade(true);
+        if (p) projetSel.value = p;
+        updateCascade(true);
+        if (a) affaireSel.value = a;
+        if (l) selectedLivrableId = l;
+        const currentClient = tableData.clients.find(cl => cl.id == clientSel.value);
+        if (currentClient) clientSearch.value = currentClient.nom_client;
+      } else updateCascade(true);
+
+      renderLivrables();
+      updateEditButtonsState();
+      debugMsg.textContent = "Données synchronisées";
+    }
+
+    function fillSelectOptions(el, items, placeholder = "Choisir...", valueKey = 'id', textKey = 'name') {
+      const currentVal = el.value;
+      el.innerHTML = `<option value="">${placeholder}</option>`;
+      items.forEach(item => {
+        const o = document.createElement('option');
+        o.value = item[valueKey];
+        o.textContent = item[textKey] || '(Vide)';
+        el.appendChild(o);
+      });
+      el.disabled = items.length === 0;
+      el.value = Array.from(el.options).some(o => String(o.value) === String(currentVal)) ? currentVal : "";
+    }
+
+    function updateCascade(skipPersist = false) {
+  // 1. Contrats (dépend du Client)
+  const clientId = parseInt(clientSel.value) || null;
+  const filteredContrats = tableData.contrats.filter(co => !clientId || co.client === clientId);
+  fillSelectOptions(contratSel, filteredContrats.sort((a, b) => String(a.reference_contrat || '').localeCompare(String(b.reference_contrat || ''))), "Choisir...", 'id', 'reference_contrat');
+  
+  const badgeContrat = document.getElementById('badge-count-contrat');
+  if (badgeContrat) {
+    badgeContrat.textContent = filteredContrats.length;
+    // On n'affiche le badge que si un client est sélectionné
+    badgeContrat.style.display = clientId ? 'inline-flex' : 'none';
+  }
+
+  // 2. Projets (dépend du Contrat)
+  const currentContratId = parseInt(contratSel.value) || null;
+  const filteredProjets = tableData.projets.filter(p => !currentContratId || p.contrat_lie === currentContratId);
+  fillSelectOptions(projetSel, filteredProjets.sort((a, b) => String(a.nom_projet || '').localeCompare(String(b.nom_projet || ''))), "Choisir...", 'id', 'nom_projet');
+
+  const badgeProjet = document.getElementById('badge-count-projet');
+  if (badgeProjet) {
+    badgeProjet.textContent = filteredProjets.length;
+    badgeProjet.style.display = currentContratId ? 'inline-flex' : 'none';
+  }
+
+  // 3. Affaires (dépend du Projet)
+  const currentProjetId = parseInt(projetSel.value) || null;
+  const filteredAffaires = tableData.affaires.filter(a => !currentProjetId || a.projet_lie === currentProjetId);
+  fillSelectOptions(affaireSel, filteredAffaires.sort((a, b) => String(a.nom_affaire || '').localeCompare(String(b.nom_affaire || ''))), "Choisir...", 'id', 'nom_affaire');
+
+  const badgeAffaire = document.getElementById('badge-count-affaire');
+  if (badgeAffaire) {
+    badgeAffaire.textContent = filteredAffaires.length;
+    badgeAffaire.style.display = currentProjetId ? 'inline-flex' : 'none';
+  }
+
+  if (!skipPersist) persistSelection();
+  renderLivrables();
+  updateEditButtonsState();
+}
+
+    function updateBtnGenerateState(livId) {
+      if (!livId) {
+          btnGenerate.textContent = "⚡ Générer les tâches à partir d'un preset";
+          btnGenerate.disabled = true;
+          delete btnGenerate.dataset.mode;
+          return;
+      }
+      const hasRealTasks = tableData.taches.some(t => t.livrable_associe === livId);
+      const hasDrafts = tableData.taches_brouillons.some(tb => tb.livrable_associe === livId) || 
+                        tableData.jalons_brouillons.some(jb => jb.livrable_associe === livId);
+
+      if (hasRealTasks) {
+          btnGenerate.textContent = "Tâches déjà générées";
+          btnGenerate.disabled = true;
+          btnGenerate.dataset.mode = 'disabled';
+          btnGenerate.classList.remove('orange');
+      } else if (hasDrafts) {
+          btnGenerate.textContent = "📝 Éditer les tâches à partir du brouillon";
+          btnGenerate.disabled = false;
+          btnGenerate.dataset.mode = 'draft';
+          btnGenerate.classList.add('orange');
+      } else {
+          btnGenerate.textContent = "⚡ Générer les tâches à partir d'un preset";
+          btnGenerate.disabled = false;
+          btnGenerate.dataset.mode = 'preset';
+          btnGenerate.classList.remove('orange');
+      }
+    }
+
+    window.selectLivrableRow = function (id) {
+      selectedLivrableId = parseInt(id);
+      const radio = document.querySelector(`input[name="livrable_radio"][value="${id}"]`);
+      if (radio) radio.checked = true;
+      
+      updateBtnGenerateState(selectedLivrableId);
+      btnEstimateResources.style.display = selectedLivrableId ? 'inline-flex' : 'none';
+      tasksContainer.style.display = selectedLivrableId ? 'block' : 'none';
+      persistSelection();
+
+      document.querySelectorAll('.livrable-action-cell').forEach(td => {
+        const cellLivId = parseInt(td.dataset.livid);
+        if (cellLivId === selectedLivrableId) {
+          td.innerHTML = `<button class="btn-remove" style="font-size:14px; padding:2px 6px;" onclick="deleteLivrableCascade(${cellLivId}, event)" title="Supprimer ce livrable et toutes ses données associées">✕</button>`;
+        } else {
+          td.innerHTML = '';
+        }
+      });
+
+      if (selectedLivrableId) {
+        renderTasksTable(selectedLivrableId);
+        isInternalChange = true;
+        grist.setCursorPos({ rowId: selectedLivrableId }).catch(() => {});
+        grist.setSelectedRows([selectedLivrableId]).catch(() => {});
+        setTimeout(() => { isInternalChange = false; }, 1000);
+      }
+    }
+
+    function renderTasksTable(livId) {
+      tbodyTasks.innerHTML = '';
+      const filteredTasks = tableData.taches.filter(t => t.livrable_associe === livId);
+      
+      if (filteredTasks.length === 0) {
+        tbodyTasks.innerHTML = '<tr><td colspan="9" class="empty-state">Aucune tâche existante pour ce livrable.</td></tr>';
+        return;
+      }
+
+      filteredTasks.forEach(t => {
+        const chargeName = tableData.employes.find(e => e.id === t.charge_tache)?.nom_employe || '—';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${t.nom_tache || '(Sans nom)'}</td>
+          <td>${chargeName}</td>
+          <td>${t.statut || '—'}</td>
+          <td style="text-align:center;">${formatDate(t.deadline_corrigee)}</td> 
+          <td style="text-align:center;">${t.duree_contractuelle_courante || 0}</td>
+          <td style="text-align:center;">${t.lag_avant || 0}</td>
+          <td style="text-align:center;">${t.lag_apres || 0}</td>
+          <td style="text-align:center;">${t.duree_operationnelle || 0}</td>
+          <td style="text-align:center;">${t.termine ? '✅' : '-'}</td>
+        `;
+        tbodyTasks.appendChild(tr);
+      });
+    }
+
+    function updateAffaireBadges() {
+      const affId = parseInt(affaireSel.value);
+      const badgeContact = document.getElementById('badge-contact');
+      const badgePlan = document.getElementById('badge-plan');
+      const badgeSuivi = document.getElementById('badge-suivi');
+
+      if (!badgeContact || !badgePlan || !badgeSuivi) return;
+      if (!affId) {
+        badgeContact.style.display = 'none'; badgePlan.style.display = 'none'; badgeSuivi.style.display = 'none'; return;
+      }
+
+      const now = new Date();
+      const todayTs = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 1000);
+
+      const contacts = tableData.contact_client_sur_affaire.filter(c => c.affaire_liee === affId);
+      badgeContact.textContent = contacts.length; badgeContact.style.display = 'inline-flex';
+
+      const plans = tableData.plan_action.filter(p => p.affaire_liee === affId);
+      badgePlan.textContent = plans.length; badgePlan.style.display = 'inline-flex';
+      if (plans.some(p => p.date_due && p.date_due < todayTs && !p.traite)) badgePlan.classList.add('alert');
+      else badgePlan.classList.remove('alert');
+
+      const suivis = tableData.suivi_economique.filter(s => s.affaire_liee === affId);
+      badgeSuivi.textContent = suivis.length; badgeSuivi.style.display = 'inline-flex';
+      if (suivis.some(s => s.date_relance && s.date_relance < todayTs && !s.paye)) badgeSuivi.classList.add('alert');
+      else badgeSuivi.classList.remove('alert');
+    }
+
+    function renderLivrables() {
+      tbodyLivrables.innerHTML = '';
+      const oldSelectedId = selectedLivrableId;
+      selectedLivrableId = null;
+      updateBtnGenerateState(null); 
+      btnEstimateResources.style.display = 'none';
+      tasksContainer.style.display = 'none';
+      
+      updateAffaireBadges();
+
+      const affId = parseInt(affaireSel.value);
+      if (!affId) return tbodyLivrables.innerHTML = '<tr><td colspan="9" class="empty-state">Veuillez sélectionner une affaire pour voir ses livrables</td></tr>';
+
+      const filtered = tableData.livrables.filter(l => l.affaire_liee === affId);
+      if (filtered.length === 0) return tbodyLivrables.innerHTML = '<tr><td colspan="9" class="empty-state">Aucun livrable associé à cette affaire.</td></tr>';
+
+      filtered.forEach(liv => {
+        const typeName = tableData.types_livrable.find(t => t.id === liv.type_livrable)?.nom_type_livrable || '';
+        const chargeName = tableData.employes.find(e => e.id === liv.charge_etude)?.nom_employe || '';
+        const isChecked = oldSelectedId === liv.id;
+        
+        const hasRealTasks = tableData.taches.some(t => t.livrable_associe === liv.id);
+        const hasDrafts = tableData.taches_brouillons.some(tb => tb.livrable_associe === liv.id);
+
+        let rowClass = 'row-no-tasks'; 
+        if (hasRealTasks) rowClass = 'row-real-tasks';
+        else if (hasDrafts) rowClass = 'row-draft-tasks';
+
+        const tr = document.createElement('tr');
+        tr.className = rowClass; 
+        tr.style.cursor = 'pointer'; 
+        tr.onclick = () => selectLivrableRow(liv.id); 
+        tr.innerHTML = `
+          <td style="text-align:center;"><input type="radio" name="livrable_radio" value="${liv.id}" onchange="selectLivrableRow(${liv.id})" ${isChecked ? 'checked' : ''}></td>
+          <td><a class="livrable-link" onclick="openModal('edit_livrable', ${liv.id})">${liv.nom_livrable || '(Sans nom)'}</a></td>
+          <td>${typeName}</td><td>${liv.indice || 'Ø'}</td><td>${chargeName}</td>
+          <td>${formatDate(liv.date_go)}</td><td>${formatDate(liv.date_deadline_prev)}</td><td>${formatDate(liv.date_deadline_corrigee)}</td>
+          <td style="text-align:center;" class="livrable-action-cell" data-livid="${liv.id}">${isChecked ? `<button class="btn-remove" style="font-size:14px; padding:2px 6px;" onclick="deleteLivrableCascade(${liv.id}, event)" title="Supprimer ce livrable et toutes ses données associées">✕</button>` : ''}</td>
+        `;
+        tbodyLivrables.appendChild(tr);
+        
+        if (isChecked) setTimeout(() => { selectLivrableRow(liv.id); }, 50);
+      });
+    }
+
+    window.deleteLivrableCascade = async function(livId, event) {
+        event.stopPropagation(); 
+        if (!confirm("⚠️ ATTENTION ⚠️\n\nVoulez-vous vraiment supprimer ce livrable et ses données associées ?\n\nCette action est irréversible.")) return;
+
+        debugMsg.textContent = "Suppression en cascade en cours...";
+        try {
+            const [snapshots, evenements, historique] = await Promise.all([
+              grist.docApi.fetchTable('Snapshot_planning'), grist.docApi.fetchTable('Evenement'), grist.docApi.fetchTable('Historique_retards')
+            ]);
+            
+            const tSnapshots = transpose(snapshots); const tEvenements = transpose(evenements); const tHistorique = transpose(historique);
+            const tachesToDelete = tableData.taches.filter(t => t.livrable_associe === livId).map(t => t.id);
+            const brouillonsToDelete = tableData.taches_brouillons.filter(t => t.livrable_associe === livId).map(t => t.id);
+            const jalonsToDelete = tableData.jalons.filter(j => j.livrable_associe === livId).map(j => j.id);
+            const jalonsBrouillonsToDelete = tableData.jalons_brouillons.filter(j => j.livrable_associe === livId).map(j => j.id);
+            const previsionnelToDelete = tableData.previsionnel.filter(p => p.livrable_associe === livId).map(p => p.id);
+            const snapshotsToDelete = tSnapshots.filter(s => tachesToDelete.includes(s.tache)).map(s => s.id);
+            const evenementsToDelete = tEvenements.filter(e => e.livrable_associe === livId).map(e => e.id);
+            const historiqueToDelete = tHistorique.filter(h => evenementsToDelete.includes(h.evenement_lie)).map(h => h.id);
+
+            let actions = [];
+            historiqueToDelete.forEach(id => actions.push(['RemoveRecord', 'Historique_retards', id]));
+            evenementsToDelete.forEach(id => actions.push(['RemoveRecord', 'Evenement', id]));
+            snapshotsToDelete.forEach(id => actions.push(['RemoveRecord', 'Snapshot_planning', id]));
+            previsionnelToDelete.forEach(id => actions.push(['RemoveRecord', 'Previsionnel_charges_ressources', id]));
+            jalonsToDelete.forEach(id => actions.push(['RemoveRecord', 'Jalons', id]));
+            jalonsBrouillonsToDelete.forEach(id => actions.push(['RemoveRecord', 'Jalons_brouillons', id]));
+            tachesToDelete.forEach(id => actions.push(['RemoveRecord', 'Taches', id]));
+            brouillonsToDelete.forEach(id => actions.push(['RemoveRecord', 'Taches_brouillons', id]));
+            actions.push(['RemoveRecord', 'Livrables', livId]);
+
+            if (actions.length > 0) await grist.docApi.applyUserActions(actions);
+
+            selectedLivrableId = null;
+            persistSelection();
+            await refreshData(true);
+            debugMsg.textContent = "Suppression terminée avec succès.";
+        } catch (e) {
+            console.error(e);
+            alert("Une erreur est survenue lors de la suppression.");
+            debugMsg.textContent = "Erreur de suppression.";
+        }
+    };
+
+    clientSel.addEventListener('change', () => { contratSel.value = ""; projetSel.value = ""; affaireSel.value = ""; updateCascade(); });
+    contratSel.addEventListener('change', () => { projetSel.value = ""; affaireSel.value = ""; updateCascade(); });
+    projetSel.addEventListener('change', () => { affaireSel.value = ""; updateCascade(); });
+    affaireSel.addEventListener('change', () => {
+      selectedLivrableId = null; renderLivrables(); updateEditButtonsState();
+      const sId = parseInt(affaireSel.value);
+      persistSelection();
+      if (sId) {
+        isInternalChange = true;
+        grist.setCursorPos({ rowId: sId }).catch(() => {});
+        grist.setSelectedRows([sId]).catch(() => {});
+        setTimeout(() => { isInternalChange = false; }, 1000);
+      } else grist.setSelectedRows([]).catch(() => {});
+    });
+
+    function renderClientSearchOptions(filter = '') {
+      clientOptions.innerHTML = '';
+      const filtered = optionsData.filter(opt => opt.text.toLowerCase().includes(filter.toLowerCase()));
+      if (filtered.length === 0) return clientOptions.innerHTML = `<div class="option-item" style="color:#999;">Aucun résultat</div>`;
+      filtered.forEach(opt => {
+        const div = document.createElement('div');
+        div.className = 'option-item';
+        if (clientSel.value == opt.value) div.classList.add('selected');
+        div.textContent = opt.text;
+        div.addEventListener('mousedown', () => {
+          clientSearch.value = opt.text; clientSel.value = opt.value; clientOptions.style.display = 'none';
+          clientSel.dispatchEvent(new Event('change'));
+        });
+        clientOptions.appendChild(div);
+      });
+    }
+    clientSearch.addEventListener('focus', () => { if (optionsData.length > 0) { clientOptions.style.display = 'block'; renderClientSearchOptions(clientSearch.value); } });
+    clientSearch.addEventListener('input', () => { clientOptions.style.display = 'block'; renderClientSearchOptions(clientSearch.value); if (clientSearch.value === '') { clientSel.value = ''; clientSel.dispatchEvent(new Event('change')); } });
+    clientSearch.addEventListener('blur', () => { setTimeout(() => { clientOptions.style.display = 'none'; const cOpt = optionsData.find(opt => opt.value == clientSel.value); clientSearch.value = cOpt ? cOpt.text : ''; }, 200); });
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('modal').style.zIndex = '10000';
+      document.getElementById('modal-box').classList.remove('large', 'medium');
+      document.getElementById('modal-body').classList.remove('full-height');
+      document.getElementById('modal-actions-container').style.display = 'flex';
+      const saveBtn = document.getElementById('modal-save-btn');
+      if(saveBtn) saveBtn.style.display = 'inline-block';
+      
+      // Cleanup de Drawflow si actif
+      if (window.currentDrawflowEditor) {
+         window.currentDrawflowEditor.clear();
+         window.currentDrawflowEditor = null;
+      }
+    }
+
+    // =====================================================================
+    // MODALES PRINCIPALES
+    // =====================================================================
+    window.openModal = function (type, itemId = null, useStacked = false) {
+      const isStacked = (type === 'drawflow_map_livrables' && useStacked);
+      
+      const modal = isStacked ? document.getElementById('modal-stacked') : document.getElementById('modal');
+      const box = isStacked ? document.getElementById('modal-box-stacked') : document.getElementById('modal-box');
+      const title = isStacked ? document.getElementById('modal-title-stacked') : document.getElementById('modal-title');
+      const body = isStacked ? document.getElementById('modal-body-stacked') : document.getElementById('modal-body');
+      const saveBtn = isStacked ? null : document.getElementById('modal-save-btn');
+      const actionsContainer = isStacked ? document.getElementById('modal-actions-container-stacked') : document.getElementById('modal-actions-container');
+
+      const isStackedOpen = (document.getElementById('modal-stacked').style.display === 'flex');
+      if (isStackedOpen && !isStacked) {
+        document.getElementById('modal').style.zIndex = '10015';
+      }
+      // NOUVEAU : Réinitialiser le bouton Annuler par défaut à chaque ouverture
+      const cancelBtn = document.querySelector('#modal-actions-container .btn-cancel');
+      if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    
+
+      body.innerHTML = '';
+      const draftBtn = document.getElementById('modal-draft-btn');
+      if (draftBtn) draftBtn.style.display = 'none';
+
+      box.classList.remove('large', 'medium');
+      body.classList.remove('full-height');
+      body.style.display = "flex";
+      body.style.flexDirection = "column";
+      body.style.gap = "10px";
+      actionsContainer.style.display = "flex";
+      if (saveBtn) {
+        saveBtn.style.display = "inline-block";
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Enregistrer";
+      }
+      modal.style.display = 'flex';
+
+      // --- MODAL: DRAWFLOW MAP (NOUVEAU) ---
+      if (type === 'drawflow_map') {
+        const pId = parseInt(projetSel.value);
+        if (!pId) { alert("Veuillez sélectionner un Projet."); return closeModal(); }
+        const projet = tableData.projets.find(p => p.id === pId);
+        
+        title.textContent = `🗺️ Carte des affaires du projet : ${projet.nom_projet || ''}`;
+        box.classList.add('large');
+        body.classList.add('full-height');
+        
+        // Cacher le bouton enregistrer natif de la modale, le système est sauvegardé en temps réel
+        saveBtn.style.display = 'none';
+
+        // Filtrer les affaires pour le drawflow
+        const affairesDuProjet = tableData.affaires.filter(a => a.projet_lie === pId);
+
+        body.innerHTML = `
+          <!-- BANDEAU HAUT -->
+          <div style="display:flex; justify-content:flex-end; margin-bottom: 10px;">
+            <button class="btn-text-add" onclick="window.returnToProjetMap = true; openModal('affaire');">🛃 + Nouvelle affaire</button>
+          </div>
+          
+          <!-- CANEVAS DRAWFLOW -->
+          <div style="position: relative; width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
+            <div id="drawflow-container" style="flex:1;"></div>
+            <div class="drawflow-toolbar">
+              <button id="df-zoom-in" title="Zoomer">+</button>
+              <button id="df-zoom-out" title="Dézoomer">-</button>
+              <button id="df-zoom-reset" title="Réinitialiser la vue">⟲</button>
+            </div>
+          </div>
+        `;
+
+        // Initialisation de Drawflow après rendu de la DOM Modale
+        setTimeout(() => {
+          const container = document.getElementById("drawflow-container");
+          if (!container) return;
+          
+          const editor = new Drawflow(container);
+          editor.start();
+
+          editor.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value, type) {
+            const center_y = ((end_pos_y - start_pos_y) / 2) + start_pos_y;
+            return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + start_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
+          }
+          
+          document.getElementById('drawflow-container').addEventListener('contextmenu', e => e.preventDefault());
+          editor.remove_node_key = '';
+
+          let gristToDrawflow = {};
+          let drawflowToGrist = {};
+          let isDrawflowLocalChange = false;
+
+          function formatReferenceValueDrawflow(empId) {
+            if (!empId) return 'Non assigné';
+            const emp = tableData.employes.find(e => e.id === empId);
+            return emp ? emp.nom_employe : empId;
+          }
+
+          function resolvePredecessorIdsDrawflow(record) {
+            const rawPreds = record.affaires_liees_predecesseurs;
+            if (!rawPreds) return [];
+            const predIds = [];
+            if (Array.isArray(rawPreds)) {
+              rawPreds.forEach(val => {
+                if (typeof val === 'number') predIds.push(val);
+              });
+            }
+            return predIds;
+          }
+
+          function arrangeNodesDrawflow(records) {
+            const count = records.length;
+            const cols = Math.ceil(Math.sqrt(count));
+            const spacingX = 280;
+            const spacingY = 200; 
+            const startX = 60;
+            const startY = 60;
+
+            return records.map((r, index) => {
+              const col = index % cols;
+              const row = Math.floor(index / cols);
+              const xGrist = r.pos_x;
+              const yGrist = r.pos_y;
+              const hasValidPosition = (typeof xGrist === 'number' && xGrist !== 0) && (typeof yGrist === 'number' && yGrist !== 0);
+              const x = hasValidPosition ? xGrist : (startX + col * spacingX);
+              const y = hasValidPosition ? yGrist : (startY + row * spacingY);
+              return { record: r, x, y };
+            });
+          }
+
+          function rebuildDrawflowCanvas(records) {
+            editor.clear();
+            gristToDrawflow = {};
+            drawflowToGrist = {};
+            const arranged = arrangeNodesDrawflow(records);
+
+            arranged.forEach(item => {
+              const rec = item.record;
+              const label = rec.nom_affaire || 'Sans nom';
+              const refEfficy = rec.reference_efficy || 'N/A';
+              const charge = formatReferenceValueDrawflow(rec.charge_affaire);
+              const rating = rec.rating || 'Aucun';
+              
+              // Echappement des quotes pour l'attribut title
+              const safeLabel = label.replace(/"/g, '&quot;');
+
+              const countLivrables = tableData.livrables.filter(l => l.affaire_liee === rec.id).length;
+
+              // MODIFICATION : Ajouter le div "drawflow-node-eye-btn" à l'intérieur du htmlContent
+              const htmlContent = `
+                <div class="drawflow-card-content" ondblclick="window.returnToProjetMap = true; openModal('edit_affaire', ${rec.id})" style="cursor: pointer;" title="Double-cliquez pour modifier cette affaire">
+                  <div class="drawflow-node-title" title="${safeLabel}">
+                    <span>${label}</span>
+                    <span class="drawflow-node-liv-badge" title="${countLivrables} livrable(s)">${countLivrables} livrables</span>
+                  </div>
+                  <div class="drawflow-node-details">
+                    <div class="drawflow-node-detail"><strong>Réf :</strong> <span>${refEfficy}</span></div>
+                    <div class="drawflow-node-detail"><strong>Resp :</strong> <span>${charge}</span></div>
+                    <div class="drawflow-node-detail"><strong>Rating :</strong> <span class="drawflow-rating-badge">${rating}</span></div>
+                  </div>
+                  <!-- Nouveau bouton œil -->
+                  <div class="drawflow-node-eye-btn" onclick="event.stopPropagation(); openLivrablesMapFromNode(${rec.id})" title="Voir le canva des livrables">👁️</div>
+                </div>
+
+              `;
+
+              const drawflowId = editor.addNode('affaire', 1, 1, item.x, item.y, 'node-affaire', { gristId: rec.id }, htmlContent);
+              gristToDrawflow[rec.id] = drawflowId;
+              drawflowToGrist[drawflowId] = rec.id;
+            });
+
+            arranged.forEach(item => {
+              const rec = item.record;
+              const preds = resolvePredecessorIdsDrawflow(rec);
+              const targetDrawflowId = gristToDrawflow[rec.id];
+
+              if (targetDrawflowId) {
+                preds.forEach(predId => {
+                  const sourceDrawflowId = gristToDrawflow[predId];
+                  if (sourceDrawflowId) {
+                    try { editor.addConnection(sourceDrawflowId, targetDrawflowId, 'output_1', 'input_1'); } 
+                    catch (err) { console.error(err); }
+                  }
+                });
+              }
+            });
+
+            setTimeout(() => {
+              Object.keys(gristToDrawflow).forEach(gristId => {
+                editor.updateConnectionNodes('node-' + gristToDrawflow[gristId]);
+              });
+            }, 120);
+          }
+
+          rebuildDrawflowCanvas(affairesDuProjet);
+
+          async function updateDrawflowGristRecord(gristId, fields) {
+            isDrawflowLocalChange = true;
+            try {
+              await grist.docApi.applyUserActions([['UpdateRecord', 'Affaires', gristId, fields]]);
+              await refreshData(true); 
+            } catch (e) {
+              console.error("Erreur de mise à jour Grist (Drawflow):", e);
+            }
+            setTimeout(() => { isDrawflowLocalChange = false; }, 400);
+          }
+
+          editor.on('connectionCreated', async function({ output_id, input_id }) {
+            if (isDrawflowLocalChange) return;
+            const sourceGristId = drawflowToGrist[output_id];
+            const targetGristId = drawflowToGrist[input_id];
+            if (!sourceGristId || !targetGristId) return;
+
+            const targetRecord = tableData.affaires.find(r => r.id === targetGristId);
+            if (targetRecord) {
+              const currentPreds = resolvePredecessorIdsDrawflow(targetRecord);
+              if (!currentPreds.includes(sourceGristId)) {
+                const newPreds = ["L", ...currentPreds, sourceGristId];
+                await updateDrawflowGristRecord(targetGristId, { affaires_liees_predecesseurs: newPreds });
+              }
+            }
+          });
+
+          editor.on('connectionRemoved', async function({ output_id, input_id }) {
+            if (isDrawflowLocalChange) return;
+            const sourceGristId = drawflowToGrist[output_id];
+            const targetGristId = drawflowToGrist[input_id];
+            if (!sourceGristId || !targetGristId) return;
+
+            const targetRecord = tableData.affaires.find(r => r.id === targetGristId);
+            if (targetRecord) {
+              const currentPreds = resolvePredecessorIdsDrawflow(targetRecord);
+              if (currentPreds.includes(sourceGristId)) {
+                const newPreds = ["L", ...currentPreds.filter(id => id !== sourceGristId)];
+                await updateDrawflowGristRecord(targetGristId, { affaires_liees_predecesseurs: newPreds.length > 1 ? newPreds : null });
+              }
+            }
+          });
+
+          editor.on('nodeMoved', async function(nodeId) {
+            const node = editor.getNodeFromId(nodeId);
+            const gristId = node.data.gristId;
+            await updateDrawflowGristRecord(gristId, { pos_x: node.pos_x, pos_y: node.pos_y });
+          });
+
+          document.getElementById('df-zoom-in').addEventListener('click', () => editor.zoom_in());
+          document.getElementById('df-zoom-out').addEventListener('click', () => editor.zoom_out());
+          document.getElementById('df-zoom-reset').addEventListener('click', () => {
+            editor.zoom = 1; editor.zoom_refresh(); editor.canvas_x = 0; editor.canvas_y = 0;
+            editor.precanvas.style.transform = "translate(0px, 0px) scale(1)";
+          });
+
+          window.currentDrawflowEditor = editor;
+
+        }, 150);
+      }
+
+
+      // --- MODAL: DRAWFLOW MAP LIVRABLES ---
+      else if (type === 'drawflow_map_livrables') {
+        const aId = parseInt(affaireSel.value);
+        if (!aId) { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+        const affaire = tableData.affaires.find(a => a.id === aId);
+        
+        title.textContent = `🗺️ Carte des livrables de l'affaire : ${affaire.nom_affaire || ''}`;
+        box.classList.add('large');
+        body.classList.add('full-height');
+        if (saveBtn) saveBtn.style.display = 'none';
+
+        // On filtre uniquement les livrables liés à l'affaire sélectionnée
+        const livrablesDeLAffaire = tableData.livrables.filter(l => l.affaire_liee === aId);
+
+        body.innerHTML = `
+          <!-- BANDEAU DE SIMULATION -->
+          <div style="display:flex; gap: 25px; margin-bottom: 15px; background: #eaf2f8; padding: 12px 20px; border-radius: 6px; align-items: center; border: 1px solid #3498db; flex-wrap: wrap;">
+            <div class="modal-field" style="flex-direction: row; align-items: center; gap: 10px;">
+              <label style="margin:0; text-transform:none;">Date de début (Simulation)</label>
+              <input type="date" id="sim-start-date" class="search-input" value="${toYYYYMMDD(new Date())}" style="width:130px; border-color:#3498db;" onchange="recalcAffaireSimulation()">
+            </div>
+            <div style="font-size: 13px; color: #2980b9; border-left: 1px solid #ccc; padding-left: 25px;">
+              <strong>Durée totale :</strong> <span id="sim-total-duration" style="font-size:16px; font-weight:bold;">0</span> j
+            </div>
+            <div style="font-size: 13px; color: #16a085; border-left: 1px solid #ccc; padding-left: 25px;">
+              <strong>Fin estimée :</strong> <span id="sim-end-date" style="font-size:16px; font-weight:bold;">-</span>
+            </div>
+            <!-- NOUVEAU BOUTON -->
+            <div style="margin-left: auto;">
+              <button class="btn-text-add" onclick="window.triggerAddLivrableFromMap();">📃 + Nouveau livrable</button>
+            </div>
+          </div>
+          
+          <!-- CANEVAS DRAWFLOW -->
+          <div style="position: relative; width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
+            <div id="drawflow-container-livrables" style="flex:1;"></div>
+            <div class="drawflow-toolbar">
+              <button id="df-liv-zoom-in" title="Zoomer">+</button>
+              <button id="df-liv-zoom-out" title="Dézoomer">-</button>
+              <button id="df-liv-zoom-reset" title="Réinitialiser la vue">⟲</button>
+            </div>
+          </div>
+        `;
+
+
+
+        // --- LOGIQUE DE CALCUL DES DELAIS ---
+        window.recalcAffaireSimulation = function() {
+          const startDateVal = document.getElementById('sim-start-date').value;
+          if (!startDateVal) return;
+          const startDate = new Date(startDateVal);
+
+          // NOUVEAU : On re-filtre la liste à chaque appel pour inclure les liens tout juste créés
+          const currentLivrables = tableData.livrables.filter(l => l.affaire_liee === aId);
+
+          // 1. Calculer la durée propre à chaque livrable
+          const livDuration = {};
+          currentLivrables.forEach(l => {
+             const presets = tableData.presets.filter(p => p.type_livrable === l.type_livrable);
+             livDuration[l.id] = presets.reduce((sum, p) => sum + (p.duree_contractuelle || 0), 0);
+          });
+
+          // ... (Le reste de la fonction reste identique, remplace juste "livrablesDeLAffaire" par "currentLivrables") ...
+          
+          function getPreds(record) {
+            const raw = record.livrables_lies_predecesseurs;
+            if (!raw) return [];
+            const ids = [];
+            if (Array.isArray(raw)) raw.forEach(v => { if (typeof v === 'number') ids.push(v); });
+            return ids;
+          }
+
+          const nodeEnd = {};
+          const visited = new Set();
+          
+          function calculateEnd(lId) {
+             if (nodeEnd[lId] !== undefined) return nodeEnd[lId];
+             if (visited.has(lId)) return 0; 
+             visited.add(lId);
+
+             const l = currentLivrables.find(x => x.id === lId);
+             if (!l) return 0;
+             
+             const preds = getPreds(l);
+             let maxPredEnd = 0;
+             preds.forEach(pId => { maxPredEnd = Math.max(maxPredEnd, calculateEnd(pId)); });
+             
+             nodeEnd[lId] = maxPredEnd + (livDuration[lId] || 0);
+             return nodeEnd[lId];
+          }
+
+          let maxTotalDuration = 0;
+          currentLivrables.forEach(l => {
+              maxTotalDuration = Math.max(maxTotalDuration, calculateEnd(l.id));
+          });
+
+          document.getElementById('sim-total-duration').textContent = maxTotalDuration;
+          const endDate = addBusinessDays(startDate, maxTotalDuration);
+          document.getElementById('sim-end-date').textContent = endDate.toLocaleDateString('fr-FR');
+        };
+
+        // Lancer le calcul initial une fois la modale affichée
+        setTimeout(() => window.recalcAffaireSimulation(), 100);
+
+        setTimeout(() => {
+          const container = document.getElementById("drawflow-container-livrables");
+          if (!container) return;
+          
+          const editor = new Drawflow(container);
+          editor.start();
+
+          editor.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y) {
+            const center_y = ((end_pos_y - start_pos_y) / 2) + start_pos_y;
+            return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + start_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
+          }
+          
+          document.getElementById('drawflow-container-livrables').addEventListener('contextmenu', e => e.preventDefault());
+          editor.remove_node_key = '';
+
+          let gristToDrawflow = {};
+          let drawflowToGrist = {};
+          let isDrawflowLocalChange = false;
+
+          // Résolution des prédécesseurs pour les Livrables
+          function resolvePredecessorIdsLivrables(record) {
+            const rawPreds = record.livrables_lies_predecesseurs;
+            if (!rawPreds) return [];
+            const predIds = [];
+            if (Array.isArray(rawPreds)) {
+              rawPreds.forEach(val => { if (typeof val === 'number') predIds.push(val); });
+            }
+            return predIds;
+          }
+
+          function rebuildDrawflowCanvasLivrables(records) {
+            
+            editor.clear();
+            gristToDrawflow = {}; drawflowToGrist = {};
+            
+            // Calcul grille de placement par défaut
+            const cols = Math.ceil(Math.sqrt(records.length));
+            const arranged = records.map((r, index) => {
+              const xGrist = r.pos_x; const yGrist = r.pos_y;
+              const hasValidPosition = (typeof xGrist === 'number' && xGrist !== 0) && (typeof yGrist === 'number' && yGrist !== 0);
+              const x = hasValidPosition ? xGrist : (60 + (index % cols) * 280);
+              const y = hasValidPosition ? yGrist : (60 + Math.floor(index / cols) * 200);
+              return { record: r, x, y };
+            });
+
+            // 1. Création des noeuds
+            arranged.forEach(item => {
+              const rec = item.record;
+              const label = rec.nom_livrable || 'Sans nom';
+              const safeLabel = label.replace(/"/g, '&quot;');
+              
+              const typeName = tableData.types_livrable.find(t => t.id === rec.type_livrable)?.nom_type_livrable || 'Non défini';
+              const chargeName = tableData.employes.find(e => e.id === rec.charge_etude)?.nom_employe || 'Non assigné';
+              const indice = rec.indice || 'Ø';
+
+              const htmlContent = `
+                <div class="drawflow-card-content" ondblclick="window.triggerEditFromLivrablesMap(${rec.id})" style="cursor: pointer;" title="Double-cliquez pour modifier ce livrable">
+                  <div class="drawflow-node-title" title="${safeLabel}">${label}</div>
+                  <div class="drawflow-node-details">
+                    <div class="drawflow-node-detail"><strong>Type :</strong> <span>${typeName}</span></div>
+                    <div class="drawflow-node-detail"><strong>Resp :</strong> <span>${chargeName}</span></div>
+                    <div class="drawflow-node-detail"><strong>Indice :</strong> <span class="drawflow-rating-badge">${indice}</span></div>
+                  </div>
+                </div>
+              `;
+
+              const drawflowId = editor.addNode('livrable', 1, 1, item.x, item.y, 'node-livrable', { gristId: rec.id }, htmlContent);
+              gristToDrawflow[rec.id] = drawflowId; drawflowToGrist[drawflowId] = rec.id;
+            });
+
+            // 2. Création des connexions
+            arranged.forEach(item => {
+              const rec = item.record;
+              const preds = resolvePredecessorIdsLivrables(rec);
+              const targetDrawflowId = gristToDrawflow[rec.id];
+
+              if (targetDrawflowId) {
+                preds.forEach(predId => {
+                  const sourceDrawflowId = gristToDrawflow[predId];
+                  if (sourceDrawflowId) {
+                    try { editor.addConnection(sourceDrawflowId, targetDrawflowId, 'output_1', 'input_1'); } 
+                    catch (err) { console.error(err); }
+                  }
+                });
+              }
+            });
+
+            setTimeout(() => {
+              Object.keys(gristToDrawflow).forEach(gristId => { editor.updateConnectionNodes('node-' + gristToDrawflow[gristId]); });
+            }, 120);
+          }
+
+          rebuildDrawflowCanvasLivrables(livrablesDeLAffaire);
+
+          // Fonction de mise à jour Grist dédiée aux Livrables
+          async function updateGristLivrables(gristId, fields) {
+            isDrawflowLocalChange = true;
+            try {
+              await grist.docApi.applyUserActions([['UpdateRecord', 'Livrables', gristId, fields]]);
+              await refreshData(true); 
+            } catch (e) {
+              console.error("Erreur de mise à jour Grist (Livrables):", e);
+            }
+            setTimeout(() => { isDrawflowLocalChange = false; }, 400);
+          }
+
+          // Evènements : Liens ajoutés
+          editor.on('connectionCreated', async function({ output_id, input_id }) {
+            if (isDrawflowLocalChange) return;
+            const sourceGristId = drawflowToGrist[output_id];
+            const targetGristId = drawflowToGrist[input_id];
+            if (!sourceGristId || !targetGristId) return;
+
+            const targetRecord = tableData.livrables.find(r => r.id === targetGristId);
+            if (targetRecord) {
+              const currentPreds = resolvePredecessorIdsLivrables(targetRecord);
+              if (!currentPreds.includes(sourceGristId)) {
+                const newPreds = ["L", ...currentPreds, sourceGristId];
+                
+                // NOUVEAU : Mise à jour de la donnée locale et recalcul immédiat de l'UI
+                targetRecord.livrables_lies_predecesseurs = newPreds;
+                window.recalcAffaireSimulation();
+                
+                await updateGristLivrables(targetGristId, { livrables_lies_predecesseurs: newPreds });
+              }
+            }
+          });
+
+          // Evènements : Liens retirés
+          editor.on('connectionRemoved', async function({ output_id, input_id }) {
+            if (isDrawflowLocalChange) return;
+            const sourceGristId = drawflowToGrist[output_id];
+            const targetGristId = drawflowToGrist[input_id];
+            if (!sourceGristId || !targetGristId) return;
+
+            const targetRecord = tableData.livrables.find(r => r.id === targetGristId);
+            if (targetRecord) {
+              const currentPreds = resolvePredecessorIdsLivrables(targetRecord);
+              if (currentPreds.includes(sourceGristId)) {
+                const newPreds = ["L", ...currentPreds.filter(id => id !== sourceGristId)];
+                const finalPreds = newPreds.length > 1 ? newPreds : null;
+
+                // NOUVEAU : Mise à jour de la donnée locale et recalcul immédiat de l'UI
+                targetRecord.livrables_lies_predecesseurs = finalPreds;
+                window.recalcAffaireSimulation();
+                
+                await updateGristLivrables(targetGristId, { livrables_lies_predecesseurs: finalPreds });
+              }
+            }
+          });
+
+          // Evènement : Déplacement de la carte
+          editor.on('nodeMoved', async function(nodeId) {
+            const node = editor.getNodeFromId(nodeId);
+            await updateGristLivrables(node.data.gristId, { pos_x: node.pos_x, pos_y: node.pos_y });
+          });
+
+          // Contrôles Zoom
+          document.getElementById('df-liv-zoom-in').addEventListener('click', () => editor.zoom_in());
+          document.getElementById('df-liv-zoom-out').addEventListener('click', () => editor.zoom_out());
+          document.getElementById('df-liv-zoom-reset').addEventListener('click', () => {
+            editor.zoom = 1; editor.zoom_refresh(); editor.canvas_x = 0; editor.canvas_y = 0;
+            editor.precanvas.style.transform = "translate(0px, 0px) scale(1)";
+          });
+
+          if (isStacked) {
+            window.stackedDrawflowEditor = editor;
+          } else {
+            window.currentDrawflowEditor = editor;
+          }
+
+        }, 150);
+      }
+
+      // --- MODAL: CLIENT ---
+      else if (type === 'client' || type === 'edit_client') {
+        let cData = {};
+        if (type === 'edit_client') {
+          const cId = parseInt(clientSel.value);
+          if (!cId) { alert("Veuillez sélectionner un Client."); return closeModal(); }
+          cData = tableData.clients.find(c => c.id === cId) || {};
+        }
+        
+        title.textContent = type === 'edit_client' ? 'Modifier le Client' : 'Nouveau Client';
+        body.innerHTML = `<div class="modal-field"><label>Nom du client</label><input type="text" id="m-name" class="search-input" value="${cData.nom_client || ''}"></div>`;
+        
+        saveBtn.onclick = async () => {
+          if (!document.getElementById('m-name').value) return alert("Veuillez saisir un nom");
+          saveBtn.disabled = true;
+          
+          if (type === 'client') {
+            const res = await grist.docApi.applyUserActions([['AddRecord', 'Clients', null, { nom_client: document.getElementById('m-name').value }]]);
+            await refreshData(false);
+            const newClientId = res.retValues[0];
+            clientSel.value = newClientId;
+            clientSearch.value = getEntityName(newClientId, 'client');
+            updateCascade();
+            clientSel.dispatchEvent(new Event('change'));
+          } else {
+            await grist.docApi.applyUserActions([['UpdateRecord', 'Clients', cData.id, { nom_client: document.getElementById('m-name').value }]]);
+            await refreshData(true);
+          }
+          closeModal();
+          saveBtn.disabled = false;
+        };
+      }
+
+      // --- MODAL: CONTRAT ---
+      else if (type === 'contrat' || type === 'edit_contrat') {
+        let coData = {};
+        const cId = parseInt(clientSel.value);
+        
+        if (type === 'edit_contrat') {
+          const coId = parseInt(contratSel.value);
+          if (!coId) { alert("Veuillez sélectionner un Contrat."); return closeModal(); }
+          coData = tableData.contrats.find(c => c.id === coId) || {};
+        } else {
+          if (!cId) { alert("Veuillez sélectionner un Client."); return closeModal(); }
+        }
+        
+        const emps = getEmployesByFonction("responsable_contrat").map(e => `<option value="${e.id}" ${coData.pilote_contrat === e.id ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+        
+        title.textContent = type === 'edit_contrat' ? 'Modifier le Contrat' : 'Nouveau Contrat';
+        body.innerHTML = `<div class="modal-field"><label>Référence du contrat</label><input type="text" id="m-ref" class="search-input" value="${coData.reference_contrat || ''}"></div>
+          <div class="modal-field"><label>Pilote du contrat</label><select id="m-emp" class="search-input"><option value="">Choisir...</option>${emps}</select></div>`;
+          
+        saveBtn.onclick = async () => {
+          if (!document.getElementById('m-ref').value) return alert("Veuillez saisir la référence.");
+          saveBtn.disabled = true;
+          
+          if (type === 'contrat') {
+          const res = await grist.docApi.applyUserActions([['AddRecord', 'Contrats', null, { reference_contrat: document.getElementById('m-ref').value, client: cId, pilote_contrat: parseInt(document.getElementById('m-emp').value) || null }]]);
+          await refreshData(false);
+          clientSel.value = cId;
+          updateCascade(true);
+          contratSel.value = res.retValues[0];
+          updateCascade();
+          contratSel.dispatchEvent(new Event('change'));
+        } else {
+            await grist.docApi.applyUserActions([['UpdateRecord', 'Contrats', coData.id, { reference_contrat: document.getElementById('m-ref').value, pilote_contrat: parseInt(document.getElementById('m-emp').value) || null }]]);
+            await refreshData(true);
+          }
+          closeModal();
+          saveBtn.disabled = false;
+        };
+      }
+
+      // --- MODAL: PROJET ---
+      else if (type === 'projet' || type === 'edit_projet') {
+        let pData = {};
+        const coId = parseInt(contratSel.value);
+        const cId = parseInt(clientSel.value);
+
+        if (type === 'edit_projet') {
+          const pId = parseInt(projetSel.value);
+          if (!pId) { alert("Veuillez sélectionner un Projet."); return closeModal(); }
+          pData = tableData.projets.find(p => p.id === pId) || {};
+        } else {
+          if (!coId) { alert("Veuillez sélectionner un Contrat."); return closeModal(); }
+        }
+        
+        const emps = getEmployesByFonction("chef_de_projet").map(e => `<option value="${e.id}" ${pData.chef_de_projet === e.id ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+        
+        title.textContent = type === 'edit_projet' ? 'Modifier le Projet' : 'Nouveau Projet';
+        body.innerHTML = `<div class="modal-field"><label>Nom du projet</label><input type="text" id="m-nom" class="search-input" value="${pData.nom_projet || ''}"></div>
+          <div class="modal-field"><label>Chef de projet</label><select id="m-emp" class="search-input"><option value="">Choisir...</option>${emps}</select></div>`;
+          
+        saveBtn.onclick = async () => {
+          if (!document.getElementById('m-nom').value) return alert("Veuillez saisir le nom.");
+          saveBtn.disabled = true;
+          
+          if (type === 'projet') {
+            const res = await grist.docApi.applyUserActions([['AddRecord', 'Projets', null, { nom_projet: document.getElementById('m-nom').value, contrat_lie: coId, chef_de_projet: parseInt(document.getElementById('m-emp').value) || null }]]);
+            await refreshData(false);
+            clientSel.value = cId; updateCascade(true);
+            contratSel.value = coId; updateCascade(true);
+            projetSel.value = res.retValues[0]; updateCascade();
+            projetSel.dispatchEvent(new Event('change'));
+        } else {
+            await grist.docApi.applyUserActions([['UpdateRecord', 'Projets', pData.id, { nom_projet: document.getElementById('m-nom').value, chef_de_projet: parseInt(document.getElementById('m-emp').value) || null }]]);
+            await refreshData(true);
+          }
+          closeModal();
+          saveBtn.disabled = false;
+        };
+      }
+
+      // --- MODAL: AFFAIRE ---
+      else if (type === 'affaire' || type === 'edit_affaire') {
+        let aData = {};
+        const pId = parseInt(projetSel.value);
+        const coId = parseInt(contratSel.value);
+        const cId = parseInt(clientSel.value);
+        
+        if (type === 'edit_affaire') {
+          // On utilise l'itemId de la carte cliquée (si présent), sinon on prend la valeur du menu déroulant
+          const aId = itemId ? parseInt(itemId) : parseInt(affaireSel.value);
+          
+          if (!aId) { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+          aData = tableData.affaires.find(a => a.id === aId) || {};
+        } else {
+          if (!pId) { alert("Veuillez sélectionner un Projet."); return closeModal(); }
+        }
+        
+        const emps = getEmployesByFonction("charge_affaire").map(e => `<option value="${e.id}" ${aData.charge_affaire === e.id ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+        const compOptions = ['simple','simple/critique', 'complexe', 'complexe/critique'].map(e => `<option value="${e}" ${aData.rating === e ? 'selected' : ''}>${e}</option>`).join('');
+        
+        title.textContent = type === 'edit_affaire' ? 'Modifier l\'Affaire' : 'Nouvelle Affaire';
+        body.innerHTML = `<div class="modal-field"><label>Nom de l'affaire</label><input type="text" id="m-nom" class="search-input" value="${aData.nom_affaire || ''}"></div>
+          <div class="modal-field"><label>N° EFFICY</label><input type="text" id="m-efficy_aff" class="search-input" value="${aData.reference_efficy || ''}"></div>
+          <div class="modal-field"><label>Chargé d'affaires</label><select id="m-emp" class="search-input"><option value="">Choisir...</option>${emps}</select></div>
+          <div class="modal-field"><label>Complexité de l'affaire</label><select id="m-comp" class="search-input"><option value="">Choisir...</option>${compOptions}</select></div>`;
+
+        // Si on vient de la carte Drawflow du Projet, le bouton Annuler nous y ramène
+        if (window.returnToProjetMap) {
+            cancelBtn.onclick = () => { 
+                window.returnToProjetMap = false; 
+                openModal('drawflow_map'); 
+            };
+        }
+          
+        saveBtn.onclick = async () => {
+          if (!document.getElementById('m-nom').value || !document.getElementById('m-comp').value) return alert("Veuillez compléter le formulaire.");
+          saveBtn.disabled = true;
+          
+          if (type === 'affaire') {
+            const res = await grist.docApi.applyUserActions([['AddRecord', 'Affaires', null, { nom_affaire: document.getElementById('m-nom').value, reference_efficy: document.getElementById('m-efficy_aff').value, rating: document.getElementById('m-comp').value, projet_lie: pId, charge_affaire: parseInt(document.getElementById('m-emp').value) || null }]]);
+            await refreshData(false);
+            clientSel.value = cId; updateCascade(true);
+            contratSel.value = parseInt(contratSel.value) || coId; updateCascade(true);
+            projetSel.value = pId; updateCascade(true);
+            affaireSel.value = res.retValues[0]; affaireSel.dispatchEvent(new Event('change'));
+        } else {
+            await grist.docApi.applyUserActions([['UpdateRecord', 'Affaires', aData.id, { nom_affaire: document.getElementById('m-nom').value, reference_efficy: document.getElementById('m-efficy_aff').value, rating: document.getElementById('m-comp').value, charge_affaire: parseInt(document.getElementById('m-emp').value) || null }]]);
+            await refreshData(true);
+          }
+          saveBtn.disabled = false;
+          
+          // Si on vient de la carte Drawflow du Projet, on y retourne !
+          if (window.returnToProjetMap) {
+              window.returnToProjetMap = false;
+              openModal('drawflow_map');
+          } else {
+              closeModal();
+          }
+        };
+      }
+
+      // --- MODAL: LIVRABLE ---
+      else if (type === 'livrable' || type === 'edit_livrable') {
+        // Redirection au clic sur Annuler
+        cancelBtn.onclick = () => { 
+          if (window.returnToMapStacked) {
+            window.returnToMapStacked = false;
+            // 1. Restaurer la carte des affaires en dessous
+            openModal('drawflow_map');
+            // 2. Ré-afficher la carte des livrables empilée au premier plan
+            setTimeout(() => {
+              openModal('drawflow_map_livrables', null, true);
+            }, 150);
+          } else if (window.returnToMap) {
+            window.returnToMap = false;
+            openModal('drawflow_map_livrables');
+          } else {
+            closeModal();
+          }
+        };
+        const affId = parseInt(affaireSel.value);
+        if (!affId && type === 'livrable') { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+
+        const typeOptions = tableData.types_livrable.map(t => `<option value="${t.id}">${t.nom_type_livrable}</option>`).join('');
+        const chargeOptions = getEmployesByFonction("charge_etude").map(e => `<option value="${e.id}">${e.nom_employe}</option>`).join('');
+        const verifOptions = getEmployesFromMatrix("verificateur").map(e => `<option value="${e.id}">${e.nom_employe}</option>`).join('');
+        const approOptions = getEmployesFromMatrix("approbateur").map(e => `<option value="${e.id}">${e.nom_employe}</option>`).join('');
+        const indOptions = ['Ø', 'Rev1', 'Rev2', 'Rev3', 'Rev4', 'Rev5'].map(i => `<option value="${i}">${i}</option>`).join('');
+
+        let lData = type === 'edit_livrable' ? tableData.livrables.find(l => l.id === itemId) : {};
+        title.textContent = type === 'edit_livrable' ? 'Modifier le Livrable' : 'Nouveau Livrable';
+
+        let tempJalons = [];
+        let jalonsToDelete = []; 
+
+        if (type === 'edit_livrable') {
+          const existing = tableData.jalons.filter(j => j.livrable_associe === itemId);
+          tempJalons = existing.map(j => ({
+            id: j.id, 
+            nom: j.nom_jalon || '(Sans nom)', 
+            date: toYYYYMMDD(new Date(j.date_jalon * 1000))
+          }));
+        }
+
+        let jalonContainerHtml = `<div id="jalon-section-container" class="modal-section" style="margin-top: 10px;"></div>`;
+
+        body.innerHTML = `
+          <div class="modal-field"><label>Nom du livrable <span style="color:red">*</span></label><input type="text" id="l-nom" class="search-input" value="${lData.nom_livrable || ''}"></div>
+          <div class="modal-field"><label>Type de livrable <span style="color:red">*</span></label><select id="l-type" class="search-input"><option value="">Choisir...</option>${typeOptions}</select></div>
+          <div class="modal-field"><label>Indice</label><select id="l-ind" class="search-input">${indOptions}</select></div>
+          <div style="display:flex; gap:10px; margin-top:5px;">
+              <div class="modal-field" style="flex:1;"><label>Chargé d'étude</label><select id="l-charge" class="search-input"><option value="">Choisir...</option>${chargeOptions}</select></div>
+              <div class="modal-field" style="flex:1;"><label>Vérificateur</label><select id="l-verif" class="search-input"><option value="">Choisir...</option>${verifOptions}</select></div>
+              <div class="modal-field" style="flex:1;"><label>Approbateur</label><select id="l-appro" class="search-input"><option value="">Choisir...</option>${approOptions}</select></div>
+          </div>
+          ${jalonContainerHtml}`;
+
+        if (lData.id) {
+          if (lData.type_livrable) document.getElementById('l-type').value = lData.type_livrable;
+          if (lData.indice) document.getElementById('l-ind').value = lData.indice;
+          if (lData.charge_etude) document.getElementById('l-charge').value = lData.charge_etude;
+          if (lData.verificateur) document.getElementById('l-verif').value = lData.verificateur;
+          if (lData.approbateur) document.getElementById('l-appro').value = lData.approbateur;
+        }
+
+        const renderJalonSection = () => {
+          const container = document.getElementById('jalon-section-container');
+          if (!container) return;
+
+          let listHtml = '';
+          if (tempJalons.length > 0) {
+            const rows = tempJalons.map((j, idx) => `
+              <tr>
+                <td>${j.nom}</td>
+                <td style="color:#666;">${new Date(j.date + 'T12:00:00').toLocaleDateString('fr-FR')}</td>
+                <td style="text-align:center;"><button class="btn-remove" onclick="removeTempJalon(${idx})">✕</button></td>
+              </tr>
+            `).join('');
+            listHtml = `<table class="contacts-table" style="margin-bottom:8px;"><thead><tr><th>Nom du jalon</th><th>Date</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+          }
+
+          container.innerHTML = `
+            <div class="modal-section-title">Jalons associés <span class="badge">${tempJalons.length}</span></div>
+            ${tempJalons.length === 0 ? '<p style="color:#aaa; font-style:italic; font-size:12px; margin:0 0 8px 0;">Aucun jalon pour l\'instant.</p>' : listHtml}
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+              <div class="modal-field" style="flex:1;"><label>Nom du jalon</label><input type="text" id="l-j-nom" class="search-input" placeholder="Ex : Remise du livrable final"></div>
+              <div class="modal-field" style="width:130px;"><label>Date du jalon</label><input type="date" id="l-j-date" class="search-input" value="${toYYYYMMDD(new Date())}"></div>
+              <button class="btn-text-add" style="align-self:flex-end; margin-bottom:1px;" onclick="addTempJalon()">+ Ajouter</button>
+            </div>
+          `;
+        };
+
+        window.addTempJalon = () => {
+          const nom = document.getElementById('l-j-nom').value.trim();
+          const dateVal = document.getElementById('l-j-date').value;
+          if (!nom) return alert("Veuillez saisir le nom du jalon.");
+          if (!dateVal) return alert("Veuillez saisir une date valide.");
+          tempJalons.push({ nom, date: dateVal }); 
+          renderJalonSection();
+        };
+
+        window.removeTempJalon = (idx) => { 
+          const j = tempJalons[idx];
+          if (j.id) jalonsToDelete.push(j.id); 
+          tempJalons.splice(idx, 1); 
+          renderJalonSection(); 
+        };
+
+        renderJalonSection();
+
+        const validateLivrableForm = () => {
+          const nom = document.getElementById('l-nom').value.trim();
+          const typeLiv = document.getElementById('l-type').value;
+          saveBtn.disabled = !(nom && typeLiv);
+        };
+
+        document.getElementById('l-nom').addEventListener('input', validateLivrableForm);
+        document.getElementById('l-type').addEventListener('change', validateLivrableForm);
+        validateLivrableForm();
+
+        saveBtn.onclick = async () => {
+          if (!document.getElementById('l-nom').value || !document.getElementById('l-type').value) {
+              return alert("Veuillez saisir le nom et le type du livrable.");
+          }
+          saveBtn.disabled = true;
+          
+          const data = {
+            nom_livrable: document.getElementById('l-nom').value,
+            type_livrable: parseInt(document.getElementById('l-type').value) || null,
+            indice: document.getElementById('l-ind').value,
+            charge_etude: parseInt(document.getElementById('l-charge').value) || null,
+            verificateur: parseInt(document.getElementById('l-verif').value) || null,
+            approbateur: parseInt(document.getElementById('l-appro').value) || null
+          };
+
+          const jNomInput = document.getElementById('l-j-nom');
+          const jDateInput = document.getElementById('l-j-date');
+          if (jNomInput && jDateInput) {
+            const jNom = jNomInput.value.trim();
+            const jDate = jDateInput.value;
+            if (jNom && jDate) tempJalons.push({ nom: jNom, date: jDate });
+          }
+
+          let currentLivId = itemId;
+
+          if (type === 'livrable') { 
+            data.affaire_liee = affId; 
+            const res = await grist.docApi.applyUserActions([['AddRecord', 'Livrables', null, data]]); 
+            currentLivId = res.retValues[0];
+          } else { 
+            await grist.docApi.applyUserActions([['UpdateRecord', 'Livrables', itemId, data]]); 
+          }
+          
+          const jalonActions = [];
+          jalonsToDelete.forEach(jId => { jalonActions.push(['RemoveRecord', 'Jalons', jId]); });
+
+          tempJalons.forEach(j => {
+            if (!j.id) {
+              const [y, m, d] = j.date.split('-').map(Number);
+              const dateTs = Math.floor(Date.UTC(y, m - 1, d) / 1000);
+              jalonActions.push(['AddRecord', 'Jalons', null, { nom_jalon: j.nom, date_jalon: dateTs, livrable_associe: currentLivId }]);
+            }
+          });
+
+          if (jalonActions.length > 0) {
+            await grist.docApi.applyUserActions(jalonActions);
+          }
+          
+          await refreshData(true);
+            saveBtn.disabled = false;
+            
+            // --- REDIRECTION DE RETOUR APRÈS ENREGISTREMENT ---
+            if (window.returnToMapStacked) {
+                window.returnToMapStacked = false;
+                // 1. Restaurer la carte des affaires en dessous
+                openModal('drawflow_map');
+                // 2. Ré-afficher la carte des livrables empilée au premier plan
+                setTimeout(() => {
+                  openModal('drawflow_map_livrables', null, true);
+                }, 150);
+            } else if (window.returnToMap) {
+                window.returnToMap = false;
+                openModal('drawflow_map_livrables');
+            } else {
+                closeModal();
+            }
+          };
+      }
+
+      // --- MODAL: ESTIMATION DES RESSOURCES ---
+      else if (type === 'estimate_resources') {
+        const livId = selectedLivrableId;
+        if (!livId) { alert("Veuillez sélectionner un Livrable."); return closeModal(); }
+
+        const liv = tableData.livrables.find(l => l.id === livId);
+        const aff = tableData.affaires.find(a => a.id === liv.affaire_liee);
+        const proj = aff ? tableData.projets.find(p => p.id === aff.projet_lie) : null;
+        
+        let defaultCdp = proj ? proj.chef_de_projet : '';
+        const existingPrev = tableData.previsionnel.find(p => p.livrable_associe === livId);
+        
+        let p1 = existingPrev ? (existingPrev.previsionnel_p1 || 0) : 0;
+        let p2 = existingPrev ? (existingPrev.previsionnel_p2 || 0) : 0;
+        let p3 = existingPrev ? (existingPrev.previsionnel_p3 || 0) : 0;
+        let p4 = existingPrev ? (existingPrev.previsionnel_p4 || 0) : 0;
+        if (existingPrev && existingPrev.chef_de_projet) defaultCdp = existingPrev.chef_de_projet;
+
+        title.textContent = '⏱️ Estimation des ressources'; 
+        box.classList.add('medium');
+        
+        const empOptions = tableData.employes.map(e => `<option value="${e.id}" ${e.id === defaultCdp ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+
+        body.innerHTML = `
+          <div style="margin-bottom:10px; padding:10px; background:#f0f4f7; border-radius:4px; font-size:13px; font-weight:bold; color:#34495e;">
+            Livrable : ${liv.nom_livrable || '(Sans nom)'}
+          </div>
+          <div class="modal-field">
+            <label>Chef de projet estimé</label>
+            <select id="er-cdp" class="search-input"><option value="">-- Choisir --</option>${empOptions}</select>
+          </div>
+          <div style="display:flex; gap:12px; margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
+            <div class="modal-field" style="flex:1;"><label>Profil P1 (Jours)</label><input type="number" id="er-p1" class="search-input" step="0.1" min="0" value="${p1}"></div>
+            <div class="modal-field" style="flex:1;"><label>Profil P2 (Jours)</label><input type="number" id="er-p2" class="search-input" step="0.1" min="0" value="${p2}"></div>
+            <div class="modal-field" style="flex:1;"><label>Profil P3 (Jours)</label><input type="number" id="er-p3" class="search-input" step="0.1" min="0" value="${p3}"></div>
+            <div class="modal-field" style="flex:1;"><label>Profil P4 (Jours)</label><input type="number" id="er-p4" class="search-input" step="0.1" min="0" value="${p4}"></div>
+          </div>
+        `;
+
+        saveBtn.textContent = '⏱️ Enregistrer l\'estimation';
+        saveBtn.onclick = async () => {
+          saveBtn.disabled = true;
+          const data = {
+            livrable_associe: livId,
+            chef_de_projet: parseInt(document.getElementById('er-cdp').value) || null,
+            previsionnel_p1: parseFloat(document.getElementById('er-p1').value) || 0,
+            previsionnel_p2: parseFloat(document.getElementById('er-p2').value) || 0,
+            previsionnel_p3: parseFloat(document.getElementById('er-p3').value) || 0,
+            previsionnel_p4: parseFloat(document.getElementById('er-p4').value) || 0,
+            date_prevision: toGristTs(new Date())
+          };
+
+          if (existingPrev) {
+            await grist.docApi.applyUserActions([['UpdateRecord', 'Previsionnel_charges_ressources', existingPrev.id, data]]);
+          } else {
+            await grist.docApi.applyUserActions([['AddRecord', 'Previsionnel_charges_ressources', null, data]]);
+          }
+
+          await refreshData(true); 
+          closeModal();
+        };
+      }
+
+      // --- MODAL: JALON AFFAIRE ---
+      else if (type === 'jalon_affaire') {
+        const affId = parseInt(affaireSel.value);
+        if (!affId) { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+
+        title.textContent = '💎 Nouveau Jalon sur l\'Affaire';
+        box.classList.add('medium');
+
+        const livrableOptions = tableData.livrables
+          .filter(l => l.affaire_liee === affId)
+          .map(l => `<option value="${l.id}">${l.nom_livrable || '(Sans nom)'}</option>`)
+          .join('');
+
+        body.innerHTML = `
+          <div class="modal-field"><label>Nom du jalon *</label><input type="text" id="j-nom" class="search-input" placeholder="Ex : Remise du dossier complet…"></div>
+          <div class="modal-field"><label>Date du jalon *</label><input type="date" id="j-date" class="search-input" value="${toYYYYMMDD(new Date())}"></div>
+          <div class="modal-field"><label>Livrable associé <span style="font-weight:normal; color:#aaa;">(optionnel)</span></label>
+            <select id="j-livrable" class="search-input"><option value="">-- Aucun --</option>${livrableOptions}</select>
+          </div>`;
+
+        saveBtn.textContent = '💎 Créer le jalon';
+        saveBtn.onclick = async () => {
+          const nom = document.getElementById('j-nom').value.trim();
+          const dateVal = document.getElementById('j-date').value;
+          if (!nom || !dateVal) return alert("Veuillez saisir le nom et la date.");
+          saveBtn.disabled = true;
+
+          const livrableId = parseInt(document.getElementById('j-livrable').value) || null;
+          const [y, m, d] = dateVal.split('-').map(Number);
+          const dateTs = Math.floor(Date.UTC(y, m - 1, d) / 1000);
+
+          await grist.docApi.applyUserActions([['AddRecord', 'Jalons', null, { nom_jalon: nom, date_jalon: dateTs, livrable_associe: livrableId }]]);
+          await refreshData(true);
+          closeModal();
+        };
+      }
+
+      // --- MODAL: CONTACT AFFAIRE ---
+      else if (type === 'contact_affaire') {
+        const affId = parseInt(affaireSel.value);
+        const clientId = parseInt(clientSel.value);
+        if (!affId) { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+        title.textContent = '👤 Contacts client sur l\'Affaire';
+        box.classList.add('medium');
+        actionsContainer.style.display = 'none';
+
+        let editingContactAffaireId = null;
+
+        const fnOptionsList = [
+          "Direction technique", "Chef de projets", "Chargé d'affaires", 
+          "Chargé d'étude", "Service achat", "Sous traitant du client"
+        ];
+        const fnHtml = fnOptionsList.map(f => `<option value="${f}">${f}</option>`).join('');
+
+        const renderContactBody = () => {
+          const linked = tableData.contact_client_sur_affaire.filter(c => c.affaire_liee === affId);
+          let linkedHtml = '';
+          if (linked.length === 0) {
+            linkedHtml = '<p style="color:#aaa; font-style:italic; font-size:12px; margin:0;">Aucun contact lié à cette affaire.</p>';
+          } else {
+            const rows = linked.map(c => {
+            const contact = tableData.contacts_client.find(x => x.id === c.contact_lie);
+            
+            if (editingContactAffaireId === c.id) {
+              return `
+                <tr>
+                  <td><input type="text" id="edit-c-nom" class="search-input" value="${contact ? contact.nom_contact || '' : ''}" placeholder="Nom" style="padding:4px; font-size:11px; width:100%; box-sizing:border-box;"></td>
+                  <td><input type="email" id="edit-c-email" class="search-input" value="${contact ? contact.email || '' : ''}" placeholder="Email" style="padding:4px; font-size:11px; width:100%; box-sizing:border-box;"></td>
+                  <td><input type="text" id="edit-c-tel" class="search-input" value="${contact ? contact.telephone || '' : ''}" placeholder="Téléphone" style="padding:4px; font-size:11px; width:100%; box-sizing:border-box;"></td>
+                  <td colspan="2" style="text-align:right; white-space:nowrap; vertical-align:middle;">
+                    <button style="color:white; border:none; border-radius:0px; padding:3px 10px; font-size:14px; cursor:pointer;" onclick="saveContactAffaire(${c.id}, ${contact ? contact.id : null})" title="Enregistrer">💾</button>
+                    <button style="color:white; border:none; border-radius:0px; padding:3px 10px; font-size:14px; cursor:pointer;" onclick="cancelEditContactAffaire()" title="Annuler">⬅️</button>
+                  </td>
+                </tr>
+                <tr style="background:#f4f6f7; border-bottom: 2px solid #3498db;">
+                   <td colspan="5" style="padding: 6px 8px; font-size: 10px; color: #555;">
+                      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px;">
+                        <div>
+                          Fonction (Générale) : 
+                          <select id="edit-c-fonction-base" class="search-input" style="width: 140px; padding: 2px; font-size: 10px; display: inline-block; margin-left: 5px;">
+                             <option value="">-- Choisir --</option>
+                             ${fnOptionsList.map(f => `<option value="${f}" ${(contact && contact.fonction) === f ? 'selected' : ''}>${f}</option>`).join('')}
+                          </select>
+                        </div>
+                        <div>
+                          Fonction (Affaire) : 
+                          <select id="edit-c-fonction" class="search-input" style="width: 140px; padding: 2px; font-size: 10px; display: inline-block; margin-left: 5px;">
+                            <option value="">-- Choisir --</option>
+                            ${fnOptionsList.map(f => `<option value="${f}" ${c.fonction === f ? 'selected' : ''}>${f}</option>`).join('')}
+                          </select>
+                        </div>
+                      </div>
+                   </td>
+                </tr>
+              `;
+            }
+            
+            return `<tr>
+              <td>${contact ? (contact.nom_contact || '—') : '(inconnu)'}</td>
+              <td style="color:#666;">${contact ? (contact.email || '—') : '—'}</td>
+              <td style="color:#666;">${contact ? (contact.telephone || '—') : '—'}</td>
+              <td>${c.fonction || '—'}</td>
+              <td style="text-align:right; white-space:nowrap;">
+                <button class="btn-edit" style="color:white; border:none; border-radius:0px; padding:3px 10px; font-weight:bold; font-size:14px; cursor:pointer; margin-right:0px;" onclick="setEditContactAffaire(${c.id})" title="Modifier">✏️</button>
+                <button style="color:white; border:none; border-radius:0px; padding:3px 10px; font-weight:bold; font-size:14px; cursor:pointer;" onclick="removeContactAffaire(${c.id})" title="Retirer de l'affaire">❌</button>
+              </td>
+            </tr>`;
+          }).join('');
+          
+          linkedHtml = `<table class="contacts-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Fonction sur affaire</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+          }
+
+          const linkedIds = linked.map(c => c.contact_lie);
+          const available = tableData.contacts_client.filter(c => (!clientId || c.client_lie === clientId) && !linkedIds.includes(c.id));
+          const availableOptions = available.map(c => `<option value="${c.id}">${c.nom_contact || '(Sans nom)'}</option>`).join('');
+
+          body.innerHTML = `
+            <div><div class="modal-section-title">Contacts actuels <span class="badge">${linked.length}</span></div>${linkedHtml}</div>
+            
+            <div class="modal-section-title" style="margin-top:25px;"><div class="modal-section-title">Lier un contact existant</div>
+              ${available.length === 0
+                ? '<p style="color:#aaa; font-style:italic; font-size:12px; margin:0;">Tous les contacts sont liés, ou aucun n\'existe.</p>'
+                : `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+                    <div class="modal-field" style="flex:1;">
+                      <label>Contact</label>
+                      <select id="lier-contact-sel" class="search-input" onchange="updateLierContactFonction(this.value)">
+                        <option value="">-- Choisir --</option>${availableOptions}
+                      </select>
+                    </div>
+                    <div class="modal-field" style="flex:1;">
+                      <label>Fonction sur l'affaire</label>
+                      <select id="lier-contact-fonction" class="search-input">
+                        <option value="">-- Choisir --</option>${fnHtml}
+                      </select>
+                    </div>
+
+                  </div>
+                    <button class="btn-text-add" style="align-self:flex-start; margin-bottom:1px;" onclick="lierContactExistant()">+ Lier</button>
+                  </div>`
+              }
+            </div>
+            
+            <div class="modal-section" style="margin-top:75px;"><div class="modal-section-title">Créer un nouveau contact</div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; gap:8px;">
+                  <div class="modal-field" style="flex:1;"><label>Nom du contact *</label><input type="text" id="new-contact-nom" class="search-input" placeholder="Prénom NOM"></div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <div class="modal-field" style="flex:1;"><label>Telephone *</label><input type="text" id="new-contact-tel" class="search-input" placeholder="N° Tel"></div>
+                  <div class="modal-field" style="flex:1;"><label>Email</label><input type="email" id="new-contact-email" class="search-input" placeholder="exemple@domaine.com"></div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <div class="modal-field" style="flex:1;">
+                    <label>Fonction du contact (Profil général)</label>
+                    <select id="new-contact-fonction-base" class="search-input" onchange="document.getElementById('new-contact-fonction').value = this.value">
+                      <option value="">-- Choisir --</option>${fnHtml}
+                    </select>
+                  </div>
+                  <div class="modal-field" style="flex:1;">
+                    <label>Fonction sur l'affaire</label>
+                    <select id="new-contact-fonction" class="search-input">
+                      <option value="">-- Choisir --</option>${fnHtml}
+                    </select>
+                  </div>
+                </div>
+                <button class="btn-text-add" style="align-self:flex-start;" onclick="creerEtLierContact()">+ Créer et lier</button>
+              </div>
+            </div>
+            <div class="modal-actions" style="margin-top:15px; border-top:none;">
+              <button class="btn-cancel" onclick="closeModal()">Fermer</button>
+            </div>
+          `;
+        };
+
+        window.setEditContactAffaire = function(liaisonId) {
+          editingContactAffaireId = liaisonId;
+          renderContactBody();
+        };
+
+        window.cancelEditContactAffaire = function() {
+          editingContactAffaireId = null;
+          renderContactBody();
+        };
+
+        window.saveContactAffaire = async function(liaisonId, contactId) {
+          const nom = document.getElementById('edit-c-nom').value.trim();
+          const email = document.getElementById('edit-c-email').value.trim();
+          const tel = document.getElementById('edit-c-tel').value.trim();
+          const fAffaire = document.getElementById('edit-c-fonction').value || null;
+          const fBase = document.getElementById('edit-c-fonction-base').value || null;
+
+          if (!nom) return alert("Le nom du contact est obligatoire.");
+
+          const actions = [];
+          actions.push(['UpdateRecord', 'Contact_client_sur_affaire', liaisonId, { fonction: fAffaire }]);
+          
+          if (contactId) {
+            actions.push(['UpdateRecord', 'Contacts_client', contactId, { 
+              nom_contact: nom, email: email || null, telephone: tel || null, fonction: fBase 
+            }]);
+          }
+
+          await grist.docApi.applyUserActions(actions);
+          editingContactAffaireId = null;
+          await refreshData(true); 
+          renderContactBody();
+        };
+
+        window.updateLierContactFonction = function(cId) {
+          const contact = tableData.contacts_client.find(x => x.id === parseInt(cId));
+          const sel = document.getElementById('lier-contact-fonction');
+          if (contact && contact.fonction && Array.from(sel.options).some(o => o.value === contact.fonction)) {
+            sel.value = contact.fonction;
+          } else {
+            sel.value = '';
+          }
+        };
+
+        window.removeContactAffaire = async (recordId) => {
+          if (!confirm("Retirer ce contact de l'affaire ?")) return;
+          await grist.docApi.applyUserActions([['RemoveRecord', 'Contact_client_sur_affaire', recordId]]);
+          await refreshData(true); renderContactBody();
+        };
+
+        window.lierContactExistant = async () => {
+          const contactId = parseInt(document.getElementById('lier-contact-sel').value);
+          const fonction = document.getElementById('lier-contact-fonction').value || null;
+          if (!contactId) return alert("Veuillez choisir un contact.");
+          await grist.docApi.applyUserActions([['AddRecord', 'Contact_client_sur_affaire', null, { contact_lie: contactId, affaire_liee: affId, entreprise: clientId || null, fonction: fonction }]]);
+          await refreshData(true); renderContactBody();
+        };
+
+        window.creerEtLierContact = async () => {
+          const nom = (document.getElementById('new-contact-nom').value || '').trim();
+          const tel = (document.getElementById('new-contact-tel').value || '').trim();
+          const email = (document.getElementById('new-contact-email').value || '').trim();
+          const fonctionBase = document.getElementById('new-contact-fonction-base').value || null;
+          const fonctionAffaire = document.getElementById('new-contact-fonction').value || null;
+          
+          if (!nom) return alert("Veuillez saisir le nom.");
+          
+          const resContact = await grist.docApi.applyUserActions([['AddRecord', 'Contacts_client', null, { 
+             nom_contact: nom, telephone: tel, client_lie: clientId || null, email: email || null, fonction: fonctionBase
+          }]]);
+          
+          const newContactId = resContact.retValues[0];
+          
+          await grist.docApi.applyUserActions([['AddRecord', 'Contact_client_sur_affaire', null, { 
+             contact_lie: newContactId, affaire_liee: affId, entreprise: clientId || null, fonction: fonctionAffaire 
+          }]]);
+          
+          await refreshData(true); renderContactBody();
+        };
+        
+        renderContactBody();
+      }
+
+      /// --- MODAL: PLAN D'ACTION ---
+      else if (type === 'plan_action') {
+        const affId = parseInt(affaireSel.value);
+        if (!affId) { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+        title.textContent = '⚠️ Plan d\'action de l\'affaire'; 
+        box.classList.add('medium');
+        actionsContainer.style.display = 'none';
+        
+        const empOptions = tableData.employes.map(e => `<option value="${e.id}">${e.nom_employe}</option>`).join('');
+        const clientId = parseInt(clientSel.value);
+        const contactOptions = tableData.contacts_client.filter(c => !clientId || c.client_lie === clientId).map(c => `<option value="${c.id}">${c.nom_contact || '(Sans nom)'}</option>`).join('');
+        const filteredLivrables = tableData.livrables.filter(l => l.affaire_liee === affId);
+        const livrableOptions = filteredLivrables.map(l => `<option value="${l.id}">${l.nom_livrable || '(Sans nom)'}</option>`).join('');
+        const selectSize = Math.min(Math.max(filteredLivrables.length, 2), 100);
+
+        const renderPlanActionBody = () => {
+          const actions = tableData.plan_action.filter(p => p.affaire_liee === affId);
+          
+          let tableHtml = '';
+          if (actions.length === 0) {
+            tableHtml = '<p style="color:#aaa; font-style:italic; font-size:12px; margin:0;">Aucune action enregistrée pour cette affaire.</p>';
+          } else {
+            const rows = actions.map(act => {
+              let livNoms = '—';
+              if (Array.isArray(act.livrables_concernes)) {
+                const ids = act.livrables_concernes.filter(v => typeof v === 'number');
+                if (ids.length > 0) livNoms = ids.map(id => tableData.livrables.find(x => x.id === id)?.nom_livrable || 'Inconnu').join(', ');
+              } else if (typeof act.livrables_concernes === 'number') { 
+                 livNoms = tableData.livrables.find(x => x.id === act.livrables_concernes)?.nom_livrable || 'Inconnu';
+              }
+
+              const rowEmpOptions = tableData.employes.map(e => `<option value="${e.id}" ${e.id === act.responsable_interne ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+              const rowContactOptions = tableData.contacts_client
+                .filter(c => !clientId || c.client_lie === clientId)
+                .map(c => `<option value="${c.id}" ${c.id === act.responsable_client ? 'selected' : ''}>${c.nom_contact || '(Sans nom)'}</option>`)
+                .join('');
+              
+              return `<tr>
+                <td>${act.nom_action || '(Sans nom)'}</td>
+                <td><input type="date" value="${act.date_due ? toYYYYMMDD(new Date(act.date_due * 1000)) : ''}" onchange="updateActionDate(${act.id}, this.value)" class="search-input" style="padding:2px; font-size:11px; width:110px;"></td>
+                <td><select class="search-input" style="padding:2px; font-size:11px; width:120px;" onchange="updateActionResp(${act.id}, 'responsable_interne', this.value)"><option value="">-- Choisir --</option>${rowEmpOptions}</select></td>
+                <td><select class="search-input" style="padding:2px; font-size:11px; width:120px;" onchange="updateActionResp(${act.id}, 'responsable_client', this.value)"><option value="">-- Choisir --</option>${rowContactOptions}</select></td>
+                <td style="max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${livNoms}">${livNoms}</td>
+                <td style="text-align:center;"><input type="checkbox" ${act.traite ? 'checked' : ''} onchange="toggleActionTraite(${act.id}, this.checked)"></td>
+                <td style="text-align:center;"><button style="color:white; border:none; border-radius:0px; padding:3px 10px; font-weight:bold; font-size:14px; cursor:pointer;" onclick="removeAction(${act.id})">❌</button></td>
+              </tr>`;
+            }).join('');
+            
+            tableHtml = `<table class="contacts-table" style="margin-bottom:8px;"><thead><tr><th>Nom de l'action</th><th>Échéance</th><th>Resp. interne</th><th>Resp. client</th><th>Livrables</th><th>Traité</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+          }
+
+          body.innerHTML = `
+            <div><div class="modal-section-title">Actions existantes <span class="badge">${actions.length}</span></div>${tableHtml}</div>
+            
+            <div class="modal-section" style="margin-top: 100px;">
+              <div class="modal-section-title">Créer une nouvelle action</div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <div class="modal-field" style="flex:1; min-width:200px;"><label>Nom de l'action *</label><input type="text" id="pa-nom" class="search-input" placeholder="Ex: Envoyer le rapport..."></div>
+                  <div class="modal-field" style="width:140px;"><label>Date d'échéance *</label><input type="date" id="pa-date" class="search-input" value="${toYYYYMMDD(new Date())}"></div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <div class="modal-field" style="width:200px;"><label>Responsable interne</label><select id="pa-resp-int" class="search-input"><option value="">-- Choisir --</option>${empOptions}</select></div>
+                  <div class="modal-field" style="width:200px;"><label>Responsable client</label><select id="pa-resp-cli" class="search-input"><option value="">-- Choisir --</option>${contactOptions}</select></div>
+                  <div class="modal-field" style="flex:1;"><label>Livrables concernés</label><select id="pa-livrables" class="search-input" multiple size="${selectSize}">${livrableOptions}</select></div>
+                </div>
+                <button class="btn-text-add" style="align-self:flex-start;" onclick="ajouterPlanAction()">+ Créer l'action</button>
+              </div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top:15px; border-top:none;"><button class="btn-cancel" onclick="closeModal()">Fermer</button></div>
+          `;
+        };
+
+        window.updateActionResp = async (id, field, val) => {
+          const parsedVal = parseInt(val) || null;
+          await grist.docApi.applyUserActions([['UpdateRecord', 'Plan_action', id, { [field]: parsedVal }]]);
+          await refreshData(true); renderPlanActionBody();
+        };
+
+        window.updateActionLivrables = async (id, selectElement) => {
+          const selectedIds = Array.from(selectElement.selectedOptions).map(opt => parseInt(opt.value));
+          const gristList = selectedIds.length > 0 ? ["L", ...selectedIds] : null;
+          await grist.docApi.applyUserActions([['UpdateRecord', 'Plan_action', id, { livrables_concernes: gristList }]]);
+          await refreshData(true); renderPlanActionBody();
+        };
+
+        window.updateActionDate = async (id, val) => {
+          if (!val) return;
+          const [y, m, d] = val.split('-').map(Number);
+          const dateTs = Math.floor(Date.UTC(y, m - 1, d) / 1000);
+          await grist.docApi.applyUserActions([['UpdateRecord', 'Plan_action', id, { date_due: dateTs }]]);
+          await refreshData(true); renderPlanActionBody();
+        };
+
+        window.toggleActionTraite = async (id, isChecked) => {
+          await grist.docApi.applyUserActions([['UpdateRecord', 'Plan_action', id, { traite: isChecked }]]);
+          await refreshData(true); renderPlanActionBody();
+        };
+
+        window.removeAction = async (id) => {
+          if (!confirm("Voulez-vous vraiment supprimer cette action ?")) return;
+          await grist.docApi.applyUserActions([['RemoveRecord', 'Plan_action', id]]);
+          await refreshData(true); renderPlanActionBody();
+        };
+
+        window.ajouterPlanAction = async () => {
+          const nom = document.getElementById('pa-nom').value.trim();
+          const dateVal = document.getElementById('pa-date').value;
+          if (!nom || !dateVal) return alert("Veuillez saisir le nom et la date.");
+
+          const livSelect = document.getElementById('pa-livrables');
+          const livrablesIds = Array.from(livSelect.selectedOptions).map(opt => parseInt(opt.value));
+          const [y, m, d] = dateVal.split('-').map(Number);
+          const dateTs = Math.floor(Date.UTC(y, m - 1, d) / 1000);
+
+          await grist.docApi.applyUserActions([['AddRecord', 'Plan_action', null, {
+            nom_action: nom, affaire_liee: affId, date_due: dateTs,
+            responsable_interne: parseInt(document.getElementById('pa-resp-int').value) || null,
+            responsable_client: parseInt(document.getElementById('pa-resp-cli').value) || null,
+            livrables_concernes: livrablesIds.length > 0 ? ["L", ...livrablesIds] : null
+          }]]);
+          await refreshData(true); renderPlanActionBody();
+        };
+
+        renderPlanActionBody();
+      }
+
+      // --- MODAL: SUIVI ECO ---
+      else if (type === 'suivi_eco') {
+        const affId = parseInt(affaireSel.value);
+        if (!affId) { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
+        title.textContent = '💲 Suivi économique de l\'affaire'; 
+        box.classList.add('medium');
+        actionsContainer.style.display = 'none';
+        
+        const filteredLivrables = tableData.livrables.filter(l => l.affaire_liee === affId);
+        const livrableOptions = filteredLivrables.map(l => `<option value="${l.id}">${l.nom_livrable || '(Sans nom)'}</option>`).join('');
+        const selectSize = Math.min(Math.max(filteredLivrables.length, 2), 100);
+
+        const renderSuiviEcoBody = () => {
+          const echeances = tableData.suivi_economique.filter(s => s.affaire_liee === affId);
+          let tableHtml = '';
+          if (echeances.length === 0) {
+            tableHtml = '<p style="color:#aaa; font-style:italic; font-size:12px; margin:0;">Aucune échéance enregistrée pour cette affaire.</p>';
+          } else {
+            const rows = echeances.map(ech => {
+              let livNoms = '—';
+              if (Array.isArray(ech.livrable_lie)) {
+                const ids = ech.livrable_lie.filter(v => typeof v === 'number');
+                if (ids.length > 0) livNoms = ids.map(id => tableData.livrables.find(x => x.id === id)?.nom_livrable || 'Inconnu').join(', ');
+              } else if (typeof ech.livrable_lie === 'number') { 
+                 livNoms = tableData.livrables.find(x => x.id === ech.livrable_lie)?.nom_livrable || 'Inconnu';
+              }
+              return `<tr>
+                <td>${ech.nom_echeance_eco || '(Sans nom)'}</td>
+                <td>${ech.poste || '—'}</td>
+                <td style="max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${livNoms}">${livNoms}</td>
+                <td><input type="date" value="${ech.date_facturation ? toYYYYMMDD(new Date(ech.date_facturation * 1000)) : ''}" onchange="updateSuiviEcoDate(${ech.id}, 'date_facturation', this.value)" class="search-input" style="padding:2px; font-size:11px; width:100px;"></td>
+                <td><input type="date" value="${ech.date_relance ? toYYYYMMDD(new Date(ech.date_relance * 1000)) : ''}" onchange="updateSuiviEcoDate(${ech.id}, 'date_relance', this.value)" class="search-input" style="padding:2px; font-size:11px; width:100px;"></td>
+                <td style="text-align:center;">${ech.pourcentage !== null && ech.pourcentage !== undefined ? ech.pourcentage + '%' : '—'}</td>
+                <td style="text-align:center;"><input type="checkbox" ${ech.paye ? 'checked' : ''} onchange="toggleSuiviEcoPaye(${ech.id}, this.checked)"></td>
+                <td style="text-align:center;"><button style="color:white; border:none; border-radius:0px; padding:3px 10px; font-weight:bold; font-size:14px; cursor:pointer;" onclick="removeSuiviEco(${ech.id})">❌</button></td>
+              </tr>`;
+            }).join('');
+            tableHtml = `<table class="contacts-table" style="margin-bottom:8px; font-size:11px;"><thead><tr><th>Nom de l'échéance</th><th>Poste</th><th>Livrables</th><th>Facturation</th><th>Relance</th><th>Pct (%)</th><th>Payé</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+          }
+
+          body.innerHTML = `
+            <div><div class="modal-section-title">Échéances existantes <span class="badge">${echeances.length}</span></div><div style="overflow-x:auto;">${tableHtml}</div></div>
+            <div class="modal-section" style="margin-top: 100px;">
+              <div class="modal-section-title">Créer une nouvelle échéance</div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <div class="modal-field" style="flex:1; min-width:150px;"><label>Nom de l'échéance *</label><input type="text" id="se-nom" class="search-input" placeholder="Ex: Facturation acompte..."></div>
+                  <div class="modal-field" style="flex:1; min-width:150px;"><label>Poste</label><input type="text" id="se-poste" class="search-input" placeholder="Ex: Phase 1..."></div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <div class="modal-field" style="width:120px;"><label>Date de facturation *</label><input type="date" id="se-date" class="search-input" value="${toYYYYMMDD(new Date())}"></div>
+                  <div class="modal-field" style="width:120px;"><label>Pourcentage (%)</label><input type="number" id="se-pourcentage" class="search-input" min="0" max="100" placeholder="Ex: 30"></div>
+                  <div class="modal-field" style="flex:1;"><label>Livrables concernés</label><select id="se-livrable" class="search-input" multiple size="${selectSize}">${livrableOptions}</select></div>
+                </div>
+                <button class="btn-text-add" style="align-self:flex-start;" onclick="ajouterSuiviEco()">+ Créer l'échéance</button>
+              </div>
+            </div>
+            <div class="modal-actions" style="margin-top:15px; border-top:none;"><button class="btn-cancel" onclick="closeModal()">Fermer</button></div>
+          `;
+        };
+
+        window.updateSuiviEcoDate = async (id, field, val) => {
+          if (!val) return;
+          const [y, m, d] = val.split('-').map(Number);
+          const dateTs = Math.floor(Date.UTC(y, m - 1, d) / 1000);
+          await grist.docApi.applyUserActions([['UpdateRecord', 'Suivi_economique', id, { [field]: dateTs }]]);
+          await refreshData(true); renderSuiviEcoBody();
+        };
+
+        window.toggleSuiviEcoPaye = async (id, isChecked) => {
+          await grist.docApi.applyUserActions([['UpdateRecord', 'Suivi_economique', id, { paye: isChecked }]]);
+          await refreshData(true); renderSuiviEcoBody();
+        };
+
+        window.removeSuiviEco = async (id) => {
+          if (!confirm("Voulez-vous vraiment supprimer cette échéance ?")) return;
+          await grist.docApi.applyUserActions([['RemoveRecord', 'Suivi_economique', id]]);
+          await refreshData(true); renderSuiviEcoBody();
+        };
+
+        window.ajouterSuiviEco = async () => {
+          const nom = document.getElementById('se-nom').value.trim();
+          const poste = document.getElementById('se-poste').value.trim();
+          const dateVal = document.getElementById('se-date').value;
+          if (!nom || !dateVal) return alert("Veuillez saisir le nom et la date.");
+
+          const [y, m, d] = dateVal.split('-').map(Number);
+          const dateTs = Math.floor(Date.UTC(y, m - 1, d) / 1000);
+          
+          const dateObj = new Date(Date.UTC(y, m - 1, d));
+          dateObj.setDate(dateObj.getDate() + 30);
+          const relanceTs = Math.floor(dateObj.getTime() / 1000);
+
+          const livSelect = document.getElementById('se-livrable');
+          const livrablesIds = Array.from(livSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+          await grist.docApi.applyUserActions([['AddRecord', 'Suivi_economique', null, {
+            nom_echeance_eco: nom, poste: poste || null, affaire_liee: affId, date_facturation: dateTs,
+            date_relance: relanceTs, pourcentage: parseFloat(document.getElementById('se-pourcentage').value) || null,
+            livrable_lie: livrablesIds.length > 0 ? ["L", ...livrablesIds] : null
+          }]]);
+          await refreshData(true); renderSuiviEcoBody();
+        };
+
+        renderSuiviEcoBody();
+      }
+
+      // =====================================================================
+      // MODAL : GENERATE TASKS & GANTT (WIZARD + FLEXBOX)
+      // =====================================================================
+      else if (type === 'generate_tasks') {
+        const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+        if (!liv || !liv.type_livrable) { alert("Le livrable doit avoir un 'Type d'étude' défini."); return closeModal(); }
+
+        window.modalLivGoDate = typeof liv.date_go === 'number' ? new Date(liv.date_go * 1000) : (new Date(liv.date_go) || new Date());
+        window.currentWizardStep = 0;
+
+        const mode = btnGenerate.dataset.mode || 'preset';
+
+        if (mode === 'preset') {
+          const presets = tableData.presets.filter(p => p.type_livrable === liv.type_livrable).sort((a, b) => a.ordre - b.ordre);
+          if (presets.length === 0) { alert("Aucun preset trouvé pour ce type d'étude."); return closeModal(); }
+
+          window.modalTasksState = presets.map((p, idx) => {
+            let deps = p.taches_precedentes || [];
+            if (Array.isArray(deps) && deps[0] === 'L') deps = deps.slice(1);
+            
+            let chargeId = null;
+            const fReq = p.fonction_requise ? p.fonction_requise.toLowerCase() : "";
+            
+            if (fReq.includes("charge_etude") || fReq.includes("chargé d'étude")) chargeId = liv.charge_etude || null;
+            else if (fReq.includes("verificateur_dei") ) chargeId = 6 || null;
+            else if (fReq.includes("verificateur") || fReq.includes("vérificateur")) chargeId = liv.verificateur || null;
+            else if (fReq.includes("secretaire_dei") ) chargeId = 7 || null;
+            else if (fReq.includes("approbateur")) chargeId = liv.approbateur || null;
+
+            return {
+              index: idx, presetId: p.id, draftId: null, name: p.nom_tache, duration: p.duree_contractuelle || 0,
+              lagAvant: p.lag_avant || 0, lagApres: p.lag_apres || 0,
+              dureeOp: (p.duree_operationnelle !== undefined && p.duree_operationnelle !== null) ? p.duree_operationnelle : (p.duree_contractuelle || 0),
+              finOp: null, fonction: p.fonction_requise || '', competence: p.competence_requise || '', profil: p.profil_requis || '',
+              estInit: p.nom_tache.toLowerCase() === 'initialisation', deps: deps, extDeps: [], chargeId: chargeId
+            };
+          });
+
+          const existingJalons = tableData.jalons.filter(j => j.livrable_associe === liv.id);
+          window.modalJalonsState = existingJalons.map(j => ({
+            id: j.id, draftId: null, name: j.nom_jalon || '(Jalon sans nom)',
+            date: j.date_jalon ? new Date(j.date_jalon * 1000) : new Date(window.modalLivGoDate), linkedTaskId: null, isNew: false
+          }));
+        } 
+        else if (mode === 'draft') {
+          const drafts = tableData.taches_brouillons.filter(tb => tb.livrable_associe === liv.id);
+          window.modalTasksState = drafts.map((dt, idx) => {
+            let deps = dt.taches_precedentes_requises || [];
+            if (Array.isArray(deps) && deps[0] === 'L') deps = deps.slice(1);
+            return {
+              index: idx, presetId: dt.id, draftId: dt.id, name: dt.nom_tache, duration: dt.duree__contractuelle_baseline || 0,
+              lagAvant: dt.lag_avant || 0, lagApres: dt.lag_apres || 0,
+              dureeOp: (dt.duree_operationnelle !== undefined && dt.duree_operationnelle !== null) ? dt.duree_operationnelle : (dt.duree__contractuelle_baseline || 0),
+              finOp: dt.fin_operationnelle ? new Date(dt.fin_operationnelle * 1000) : null,
+              fonction: dt.fonction_requise || '', competence: dt.competence_requise || '', profil: dt.profil_requis || '',
+              estInit: dt.nom_tache.toLowerCase() === 'initialisation', deps: deps, extDeps: [], chargeId: dt.charge_tache || null
+            };
+          });
+
+          const initDraftTask = drafts.find(dt => dt.nom_tache && dt.nom_tache.toLowerCase() === 'initialisation');
+          if (initDraftTask) {
+            const initDateTs = initDraftTask.date_execution || initDraftTask.deadline_corrigee || initDraftTask.deadline_baseline;
+            if (initDateTs) window.modalLivGoDate = new Date(initDateTs * 1000);
+          }
+
+          const draftJalons = tableData.jalons_brouillons.filter(jb => jb.livrable_associe === liv.id);
+          window.modalJalonsState = draftJalons.map(j => ({
+            id: j.id, draftId: j.id, name: j.nom_jalon || '(Jalon sans nom)',
+            date: j.date_jalon ? new Date(j.date_jalon * 1000) : new Date(window.modalLivGoDate), linkedTaskId: j.tache_associee || null, isNew: false
+          }));
+        }
+
+        window.showWizardOrGantt = function () {
+          while (window.currentWizardStep < window.modalJalonsState.length && window.modalJalonsState[window.currentWizardStep].linkedTaskId) {
+            window.currentWizardStep++;
+          }
+
+          if (window.currentWizardStep < window.modalJalonsState.length) {
+            actionsContainer.style.display = "none";
+            box.classList.remove('large', 'medium');
+            body.classList.remove('full-height');
+            title.textContent = "Placement des jalons existants";
+
+            const j = window.modalJalonsState[window.currentWizardStep];
+            const taskOptions = window.modalTasksState.filter(t => !t.estInit).map(t => `<option value="${t.presetId}">${t.name}</option>`).join('');
+
+            body.innerHTML = `
+              <div class="wizard-container">
+                <h3 style="color:var(--jalon-color);">💎 ${j.name}</h3>
+                <p style="font-size:14px; color:#444;">Après quelle tâche ce jalon s'inscrit-il visuellement ?</p>
+                <p style="font-size:12px; color:#777;">(La date restera fixe et modifiable indépendamment de la tâche)</p>
+                <select id="wizard-select" class="search-input" style="max-width:300px;"><option value="">-- Aucun lien visuel --</option>${taskOptions}</select>
+                <span class="wizard-step-info">Étape ${window.currentWizardStep + 1} sur ${window.modalJalonsState.length}</span>
+                <div style="display:flex; gap:10px; margin-top:15px;"><button class="btn-cancel" onclick="closeModal()">Annuler</button><button class="btn-save" onclick="nextWizardStep()">Suivant ➔</button></div>
+              </div>`;
+          } else {
+            renderGanttInterface(liv);
+          }
+        };
+
+        window.nextWizardStep = function () {
+          const sel = document.getElementById('wizard-select').value;
+          window.modalJalonsState[window.currentWizardStep].linkedTaskId = sel ? parseInt(sel) : null;
+          window.currentWizardStep++; showWizardOrGantt();
+        };
+
+        showWizardOrGantt();
+      }
+    }
+
+    // --- Helpers de tri employés par matrice compétences ---
+    window.getValidEmployeesForTask = function(t) {
+        if (!t.fonction && !t.competence && !t.profil) return tableData.employes.slice().sort((a,b) => String(a.nom_employe||'').localeCompare(String(b.nom_employe||'')));
+        const validIds = new Set();
+        tableData.matrice_competences.forEach(m => {
+            let mFonctions = Array.isArray(m.fonction) ? m.fonction : [m.fonction];
+            let mProfils = Array.isArray(m.profil) ? m.profil : [m.profil];
+            let matchFonction = !t.fonction || mFonctions.includes(t.fonction);
+            let matchCompetence = !t.competence || m.competence === t.competence;
+            let matchProfil = !t.profil || mProfils.includes(t.profil);
+            if (matchFonction && matchCompetence && matchProfil && m.employe) validIds.add(m.employe);
+        });
+        return tableData.employes.filter(e => validIds.has(e.id)).sort((a,b) => String(a.nom_employe||'').localeCompare(String(b.nom_employe||'')));
+    };
+
+    window.highlightListItem = function(id) { const el = document.getElementById('list-item-' + id); if (el) el.classList.add('highlight'); };
+    window.removeHighlightListItem = function(id) { const el = document.getElementById('list-item-' + id); if (el) el.classList.remove('highlight'); };
+
+    // --- SOUS-MODAL EDITION TACHE ---
+    window.openTaskModal = function (tIdx) {
+      window.editingTaskIndex = tIdx;
+      window.tasksStateBackup = JSON.parse(JSON.stringify(window.modalTasksState));
+      window.tasksStateBackup.forEach((bt, i) => { bt.finOp = window.modalTasksState[i].finOp ? new Date(window.modalTasksState[i].finOp) : null; });
+      const modal = document.getElementById('task-modal');
+      renderTaskModalBody();
+      modal.style.display = 'flex';
+    };
+
+    window.cancelTaskModal = function () {
+      window.modalTasksState = window.tasksStateBackup;
+      document.getElementById('task-modal').style.display = 'none';
+      const tScroll = document.getElementById('tasks-list-scroll') ? document.getElementById('tasks-list-scroll').scrollTop : 0;
+      const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+      renderGanttInterface(liv); 
+      if (document.getElementById('tasks-list-scroll')) document.getElementById('tasks-list-scroll').scrollTop = tScroll;
+    };
+
+    window.closeTaskModal = function () {
+      document.getElementById('task-modal').style.display = 'none';
+      const tScroll = document.getElementById('tasks-list-scroll') ? document.getElementById('tasks-list-scroll').scrollTop : 0;
+      const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+      renderGanttInterface(liv); 
+      if (document.getElementById('tasks-list-scroll')) document.getElementById('tasks-list-scroll').scrollTop = tScroll;
+    };
+
+    window.updateTaskName = function (val) { window.modalTasksState[window.editingTaskIndex].name = val; }
+    window.updateTaskDuration = function (val) { window.modalTasksState[window.editingTaskIndex].duration = parseInt(val) || 0; }
+    window.updateTaskLagAvant = function (val) { window.modalTasksState[window.editingTaskIndex].lagAvant = parseInt(val) || 0; }
+    window.updateTaskLagApres = function (val) { window.modalTasksState[window.editingTaskIndex].lagApres = parseInt(val) || 0; }
+    window.updateTaskDureeOp = function (val) { window.modalTasksState[window.editingTaskIndex].dureeOp = parseInt(val) || 0; }
+    window.updateTaskFinOp = function (val) { window.modalTasksState[window.editingTaskIndex].finOp = val ? new Date(val) : null; }
+    window.updateTaskFonction = function (val) { window.modalTasksState[window.editingTaskIndex].fonction = val; window.renderTaskModalBody(); }
+    window.updateTaskCompetence = function (val) { window.modalTasksState[window.editingTaskIndex].competence = val; window.renderTaskModalBody(); }
+    window.updateTaskProfil = function (val) { window.modalTasksState[window.editingTaskIndex].profil = val; window.renderTaskModalBody(); }
+    window.updateTaskCharge = function (val) { window.modalTasksState[window.editingTaskIndex].chargeId = parseInt(val) || null; }
+
+    window.deleteTask = function(presetId) {
+      if(!confirm("Voulez-vous vraiment supprimer cette tâche ?")) return;
+      window.modalTasksState.forEach(otherT => { otherT.deps = otherT.deps.filter(dId => dId !== presetId); });
+      window.modalJalonsState.forEach(j => { if (j.linkedTaskId === presetId) j.linkedTaskId = null; });
+      window.modalTasksState = window.modalTasksState.filter(t => t.presetId !== presetId);
+      const tScroll = document.getElementById('tasks-list-scroll') ? document.getElementById('tasks-list-scroll').scrollTop : 0;
+      const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+      renderGanttInterface(liv);
+      if (document.getElementById('tasks-list-scroll')) document.getElementById('tasks-list-scroll').scrollTop = tScroll;
+    };
+
+    window.removeInternalDep = function (dId) { const t = window.modalTasksState[window.editingTaskIndex]; t.deps = t.deps.filter(id => id !== dId); renderTaskModalBody(); window.renderPreviewGantt(); }
+    window.removeInternalSucc = function (succId) { const currentId = window.modalTasksState[window.editingTaskIndex].presetId; const succ = window.modalTasksState.find(x => x.presetId === succId); if (succ) succ.deps = succ.deps.filter(id => id !== currentId); renderTaskModalBody(); window.renderPreviewGantt(); }
+    window.removeExternalDep = function (extId) { const t = window.modalTasksState[window.editingTaskIndex]; t.extDeps = t.extDeps.filter(id => id !== extId); renderTaskModalBody(); }
+    window.addInternalDep = function () { const val = document.getElementById('add-int-dep').value; if (!val) return; const t = window.modalTasksState[window.editingTaskIndex]; if (!t.deps.includes(parseInt(val))) t.deps.push(parseInt(val)); renderTaskModalBody(); window.renderPreviewGantt(); }
+    window.addInternalSucc = function () { const currentId = window.modalTasksState[window.editingTaskIndex].presetId; const val = document.getElementById('add-int-succ').value; if (!val) return; const succ = window.modalTasksState.find(x => x.presetId === parseInt(val)); if (succ && !succ.deps.includes(currentId)) succ.deps.push(currentId); renderTaskModalBody(); window.renderPreviewGantt(); }
+    
+    window.updateExtTaskSelect = function () {
+      const livId = parseInt(document.getElementById('ext-liv-sel').value); const sel = document.getElementById('ext-task-sel');
+      if (!livId) { sel.innerHTML = '<option value="">-- Choisir une tâche --</option>'; return; }
+      const extTasks = tableData.taches.filter(t => t.livrable_associe === livId);
+      sel.innerHTML = '<option value="">-- Choisir une tâche --</option>' + extTasks.map(t => `<option value="${t.id}">${t.nom_tache}</option>`).join('');
+    }
+    window.addExternalDep = function () { const val = document.getElementById('ext-task-sel').value; if (!val) return; const t = window.modalTasksState[window.editingTaskIndex]; if (!t.extDeps.includes(parseInt(val))) t.extDeps.push(parseInt(val)); renderTaskModalBody(); }
+
+    window.renderTaskModalBody = function () {
+      const t = window.modalTasksState[window.editingTaskIndex];
+      let computedOpEndD = t.finOp;
+      if (!computedOpEndD) computedOpEndD = t.startD ? (t.dureeOp > 0 ? addBusinessDays(t.startD, t.dureeOp - 1) : t.startD) : new Date();
+
+      let internalDepsHtml = t.deps.map(dId => { const depT = window.modalTasksState.find(x => x.presetId === dId); return `<li><span>[Interne] ${depT ? depT.name : dId}</span> <button class="btn-remove" onclick="removeInternalDep(${dId})">X</button></li>`; }).join('');
+      let externalDepsHtml = t.extDeps.map(extId => { const extT = tableData.taches.find(x => x.id === extId); return `<li><span>[Externe] ${extT ? extT.nom_tache : extId}</span> <button class="btn-remove" onclick="removeExternalDep(${extId})">X</button></li>`; }).join('');
+
+      const intOptions = window.modalTasksState.filter(x => x.presetId !== t.presetId && !t.deps.includes(x.presetId)).map(x => `<option value="${x.presetId}">${x.name}</option>`).join('');
+      const successors = window.modalTasksState.filter(x => x.deps.includes(t.presetId));
+      let internalSuccsHtml = successors.map(succ => `<li><span>[Interne] ${succ.name}</span> <button class="btn-remove" onclick="removeInternalSucc(${succ.presetId})">X</button></li>`).join('');
+      const intSuccOptions = window.modalTasksState.filter(x => x.presetId !== t.presetId && !x.deps.includes(t.presetId) && !t.deps.includes(x.presetId)).map(x => `<option value="${x.presetId}">${x.name}</option>`).join('');
+
+      const currAff = tableData.affaires.find(a => a.id == parseInt(affaireSel.value));
+      let livOptions = '';
+      if (currAff && currAff.projet_lie) {
+        const projAffaires = tableData.affaires.filter(a => a.projet_lie === currAff.projet_lie).map(a => a.id);
+        const siblingLivrables = tableData.livrables.filter(l => projAffaires.includes(l.affaire_liee) && l.id !== selectedLivrableId);
+        livOptions = siblingLivrables.map(l => `<option value="${l.id}">${l.nom_livrable || 'Livrable ' + l.id}</option>`).join('');
+      }
+
+      let fSet = new Set(), cSet = new Set(), pSet = new Set();
+      tableData.matrice_competences.forEach(m => {
+          if(Array.isArray(m.fonction)) m.fonction.forEach(f => {if(f && f !== 'L') fSet.add(f)}); else if(m.fonction && m.fonction !== 'L') fSet.add(m.fonction);
+          if(m.competence) cSet.add(m.competence);
+          if(Array.isArray(m.profil)) m.profil.forEach(p => {if(p && p !== 'L') pSet.add(p)}); else if(m.profil && m.profil !== 'L') pSet.add(m.profil);
+      });
+      tableData.presets.forEach(p => { if(p.fonction_requise) fSet.add(p.fonction_requise); if(p.competence_requise) cSet.add(p.competence_requise); if(p.profil_requis) pSet.add(p.profil_requis); });
+      tableData.taches_brouillons.forEach(tb => { if(tb.fonction_requise) fSet.add(tb.fonction_requise); if(tb.competence_requise) cSet.add(tb.competence_requise); if(tb.profil_requis) pSet.add(tb.profil_requis); });
+
+      let fOptions = Array.from(fSet).sort().map(v => `<option value="${v}" ${t.fonction === v ? 'selected' : ''}>${v}</option>`).join('');
+      let cOptions = Array.from(cSet).sort().map(v => `<option value="${v}" ${t.competence === v ? 'selected' : ''}>${v}</option>`).join('');
+      let pOptions = Array.from(pSet).sort().map(v => `<option value="${v}" ${t.profil === v ? 'selected' : ''}>${v}</option>`).join('');
+
+      let validEmployes = window.getValidEmployeesForTask(t);
+      let chargeOptions = validEmployes.map(e => `<option value="${e.id}" ${t.chargeId === e.id ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+
+      document.getElementById('task-modal-body').innerHTML = `
+        <div class="modal-field"><label>Nom de la tâche</label><input type="text" class="search-input" value="${t.name}" onchange="updateTaskName(this.value)"></div>
+        <div style="display:flex; gap:15px; align-items:flex-end;">
+            <div class="modal-field" style="flex:0.33; margin-top: 10px;"><label>Lag avant</label><input type="number" class="search-input" min="0" value="${t.lagAvant}" onchange="updateTaskLagAvant(this.value)"></div>
+            <div class="modal-field" style="flex:0.33; margin-top: 10px;"><label>Durée contractuelle</label><input type="number" class="search-input" min="0" value="${t.duration}" onchange="updateTaskDuration(this.value)"></div>
+            <div class="modal-field" style="flex:0.33; margin-top: 10px;"><label>Lag après</label><input type="number" class="search-input" min="0" value="${t.lagApres}" onchange="updateTaskLagApres(this.value)"></div>
+            <div class="modal-field" style="flex:0.5; margin-top: 10px;"><label>Durée op. (J)</label><input type="number" class="search-input" min="0" value="${t.dureeOp}" onchange="updateTaskDureeOp(this.value)"></div>
+            <div class="modal-field" style="flex:0.5; margin-top: 10px;"><label>Fin opérationnelle</label><input type="date" class="search-input" value="${toYYYYMMDD(computedOpEndD)}" onchange="updateTaskFinOp(this.value)"></div>
+        </div>
+
+        <div style="border-top: 2px solid #e74c3c; margin-top: 15px; padding-top: 15px; display: flex; gap: 15px; flex-wrap:wrap;">
+            <div class="modal-field" style="flex:1;"><label>Fonction requise</label><select class="search-input" onchange="updateTaskFonction(this.value)"><option value="">-- Aucune --</option>${fOptions}</select></div>
+            <div class="modal-field" style="flex:1;"><label>Compétence requise</label><select class="search-input" onchange="updateTaskCompetence(this.value)"><option value="">-- Aucune --</option>${cOptions}</select></div>
+            <div class="modal-field" style="flex:1;"><label>Profil requis</label><select class="search-input" onchange="updateTaskProfil(this.value)"><option value="">-- Aucun --</option>${pOptions}</select></div>
+            <div class="modal-field" style="flex:1;"><label>Assigné à</label><select class="search-input" onchange="updateTaskCharge(this.value)"><option value="">-- Non assigné --</option>${chargeOptions}</select></div>
+        </div>
+        
+        <div class="two-col">
+            <div class="col">
+                <div class="col-title">Prédecesseurs Actuels</div>
+                <ul class="dep-list">${internalDepsHtml}${externalDepsHtml}${(t.deps.length === 0 && t.extDeps.length === 0) ? '<li style="color:#999; font-style:italic;">Aucun prédecesseur</li>' : ''}</ul>
+                <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 10px;">
+                  <label style="font-size: 11px; font-weight: bold; color: #666; margin-bottom:5px; display:block;">Ajouter (Interne)</label>
+                  <div style="display:flex; gap:5px;"><select id="add-int-dep" class="search-input"><option value="">-- Choisir --</option>${intOptions}</select><button class="btn-save" onclick="addInternalDep()">Ajouter</button></div>
+                </div>
+                <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 10px;">
+                  <label style="font-size: 11px; font-weight: bold; color: #666; margin-bottom:5px; display:block;">Ajouter (Externe)</label>
+                  <select id="ext-liv-sel" class="search-input" onchange="updateExtTaskSelect()" style="margin-bottom:5px;"><option value="">-- Choisir livrable --</option>${livOptions}</select>
+                  <div style="display:flex; gap:5px;"><select id="ext-task-sel" class="search-input"><option value="">-- Choisir tâche --</option></select><button class="btn-save" onclick="addExternalDep()">Ajouter</button></div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="col-title">Successeurs Actuels</div>
+                <ul class="dep-list">${internalSuccsHtml}${(successors.length === 0) ? '<li style="color:#999; font-style:italic;">Aucun successeur</li>' : ''}</ul>
+                <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 10px;">
+                  <label style="font-size: 11px; font-weight: bold; color: #666; margin-bottom:5px; display:block;">Ajouter (Interne)</label>
+                  <div style="display:flex; gap:5px;"><select id="add-int-succ" class="search-input"><option value="">-- Choisir --</option>${intSuccOptions}</select><button class="btn-save" onclick="addInternalSucc()">Ajouter</button></div>
+                </div>
+                <p style="font-size: 10px; color: #999; margin-top: 15px; font-style: italic;">Note: Pour définir un successeur externe, rendez-vous sur le livrable de la tâche en question et ajoutez la tâche courante en tant que prédecesseur externe.</p>
+            </div>
+        </div>`;
+    };
+
+    window.initResizer = function () {
+      const resizer = document.getElementById('dragMe'); const leftSide = document.getElementById('tasks-list-scroll');
+      if (!resizer || !leftSide) return;
+      let x = 0, w = 0;
+      const mouseDownHandler = e => { x = e.clientX; w = leftSide.getBoundingClientRect().width; document.addEventListener('mousemove', mouseMoveHandler); document.addEventListener('mouseup', mouseUpHandler); };
+      const mouseMoveHandler = e => { leftSide.style.width = `${w + (e.clientX - x)}px`; };
+      const mouseUpHandler = () => { document.removeEventListener('mousemove', mouseMoveHandler); document.removeEventListener('mouseup', mouseUpHandler); };
+      resizer.addEventListener('mousedown', mouseDownHandler);
+    };
+
+    window.addCustomTask = function() {
+      const newId = Date.now();
+      window.modalTasksState.push({ presetId: newId, draftId: null, chargeId: null, name: "Nouvelle Tâche", duration: 1, lagAvant: 0, lagApres: 0, dureeOp: 1, finOp: null, fonction: '', competence: '', profil: '', estInit: false, deps: [], extDeps: [] });
+      const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+      renderGanttInterface(liv);
+      const newIdx = window.modalTasksState.findIndex(t => t.presetId === newId);
+      if(newIdx !== -1) openTaskModal(newIdx); 
+      setTimeout(() => { const scrollEl = document.getElementById('tasks-list-scroll'); if(scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; }, 50);
+    };
+
+    window.addCustomJalon = function() {
+      const newId = 'new_' + Date.now();
+      window.modalJalonsState.push({ id: newId, draftId: null, isNew: true, name: "Nouveau Jalon", date: new Date(window.modalLivGoDate), linkedTaskId: null });
+      const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+      renderGanttInterface(liv);
+      setTimeout(() => { const scrollEl = document.getElementById('tasks-list-scroll'); if(scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight; }, 50);
+    };
+
+    window.deleteJalon = function(jId) {
+      if (!confirm("Voulez-vous vraiment supprimer ce jalon ?")) return;
+      window.modalJalonsState = window.modalJalonsState.filter(j => String(j.id) !== String(jId));
+      const scrollPos = document.getElementById('tasks-list-scroll').scrollTop;
+      const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+      renderGanttInterface(liv);
+      document.getElementById('tasks-list-scroll').scrollTop = scrollPos;
+    };
+
+    // --- GENERATION DE L'INTERFACE GANTT GLOBALE ---
+    window.renderGanttInterface = function (liv) {
+      const box = document.getElementById('modal-box');
+      const title = document.getElementById('modal-title');
+      const body = document.getElementById('modal-body');
+      const actionsContainer = document.getElementById('modal-actions-container');
+      const saveBtn = document.getElementById('modal-save-btn');
+
+      actionsContainer.style.display = "flex";
+      saveBtn.style.display = "inline-block";
+
+      let draftBtn = document.getElementById('modal-draft-btn');
+      if (!draftBtn) {
+        draftBtn = document.createElement('button');
+        draftBtn.id = 'modal-draft-btn'; draftBtn.className = 'btn-save'; draftBtn.style.backgroundColor = '#f39c12'; draftBtn.style.marginLeft = '10px';
+        actionsContainer.appendChild(draftBtn);
+      }
+      draftBtn.style.display = 'inline-block';
+      draftBtn.textContent = "Sauvegarder le brouillon";
+      draftBtn.disabled = false;
+
+      box.classList.add('large'); body.classList.add('full-height');
+      title.textContent = "Ajuster les dates et durées (" + liv.nom_livrable + ")";
+
+      function sortTasksTopologically(tasks) {
+          const inDegree = new Map(); const adj = new Map();
+          tasks.forEach(t => { inDegree.set(t.presetId, 0); adj.set(t.presetId, []); });
+          tasks.forEach(t => { (t.deps || []).forEach(dId => { if (adj.has(dId)) { adj.get(dId).push(t.presetId); inDegree.set(t.presetId, inDegree.get(t.presetId) + 1); } }); });
+          const originalOrder = new Map(tasks.map((t, idx) => [t.presetId, idx]));
+          const sortByOriginal = (a, b) => originalOrder.get(a.presetId) - originalOrder.get(b.presetId);
+          let q = tasks.filter(t => inDegree.get(t.presetId) === 0).sort(sortByOriginal);
+          const result = [];
+          while (q.length > 0) {
+              let current = q.shift(); result.push(current);
+              let readyChildren = [];
+              adj.get(current.presetId).forEach(childId => { inDegree.set(childId, inDegree.get(childId) - 1); if (inDegree.get(childId) === 0) readyChildren.push(tasks.find(t => t.presetId === childId)); });
+              readyChildren.sort(sortByOriginal); q = readyChildren.concat(q);
+          }
+          tasks.forEach(t => { if (!result.includes(t)) result.push(t); });
+          return result;
+      }
+
+      window.modalTasksState = sortTasksTopologically(window.modalTasksState);
+      window.displayList = [];
+      window.modalTasksState.forEach(t => {
+        window.displayList.push({ type: 'task', id: t.presetId, data: t });
+        window.modalJalonsState.filter(j => j.linkedTaskId == t.presetId).forEach(j => { window.displayList.push({ type: 'jalon', id: 'j_' + j.id, data: j }); });
+      });
+      window.modalJalonsState.filter(j => !j.linkedTaskId).forEach(j => { window.displayList.push({ type: 'jalon', id: 'j_' + j.id, data: j }); });
+
+      const existingGanttContainer = document.getElementById('gantt-container-scroll');
+      const currentScrollLeft = existingGanttContainer ? existingGanttContainer.scrollLeft : 0;
+      const existingLeftList = document.getElementById('tasks-list-scroll');
+      const currentLeftWidth = existingLeftList ? existingLeftList.style.width : '480px';
+      const currentScrollTop = existingLeftList ? existingLeftList.scrollTop : 0;
+
+      let listHTML = window.displayList.map((item, index) => {
+        if (item.type === 'task') {
+          const t = item.data;
+          const tIdx = window.modalTasksState.indexOf(t);
+          const rightControl = t.estInit
+            ? `<input type="date" class="input-date" value="${toYYYYMMDD(window.modalLivGoDate)}" onchange="updateGoDate(this.value)">`
+            : `<div class="input-group">
+                 <input type="number" class="input-duree lag-input" min="0" value="${t.lagAvant}" onchange="updateTaskField(${tIdx}, 'lagAvant', this.value)" title="Lag avant">
+                 <input type="number" class="input-duree duration-input" min="0" value="${t.duration}" onchange="updateTaskField(${tIdx}, 'duration', this.value)" title="Durée contractuelle">
+                 <input type="number" class="input-duree lag-input" min="0" value="${t.lagApres}" onchange="updateTaskField(${tIdx}, 'lagApres', this.value)" title="Lag après">
+                 <button class="btn-remove" style="background:none; color:#e74c3c; font-size:14px; border:none; cursor:pointer; padding:0 5px; margin-left: 5px;" onclick="deleteTask(${t.presetId})" title="Supprimer cette tâche">✕</button>
+               </div>`;
+
+          let assignDropdown = `<div style="width: 105px; flex-shrink: 0;"></div>`;
+          if (!t.estInit && t.name.toLowerCase() !== 'fin') {
+              let validEmployes = window.getValidEmployeesForTask(t);
+              let currentEmpOptions = validEmployes.map(e => `<option value="${e.id}" ${t.chargeId === e.id ? 'selected' : ''}>${e.nom_employe}</option>`).join('');
+              assignDropdown = `<select class="search-input" style="width: 100px; padding: 2px; font-size: 10px; margin-right: 5px; flex-shrink: 0; border:1px solid #e0e6ed; background:#fff;" onchange="updateTaskField(${tIdx}, 'chargeId', this.value)"><option value="">-- Assigné --</option>${currentEmpOptions}</select>`;
+          }
+
+          return `<div class="task-item" id="list-item-task-${t.presetId}">
+            <span class="task-name-link" style="font-weight:${(t.estInit || t.duration === 0) ? 'bold' : 'normal'}; flex-grow:1; overflow:hidden; text-overflow:ellipsis;" onclick="openTaskModal(${tIdx})">${t.name} ${t.estInit ? '📍' : ''}</span>
+            ${assignDropdown}
+            ${rightControl}
+          </div>`;
+        } else {
+          const j = item.data;
+          return `<div class="task-item jalon-item" id="list-item-jalon-${j.id}">
+            <span style="color:var(--jalon-color); margin-left:15px; font-weight:bold; font-size:11px;">↳ 💎 </span>
+            <input type="text" value="${j.name}" style="flex-grow:1; min-width:0; border:none; background:transparent; font-weight:bold; font-size:11px; color:var(--jalon-color); outline:none; text-overflow:ellipsis;" onchange="updateJalonField('${j.id}', 'name', this.value)">
+            <div class="input-group-jalon">
+              <select class="search-input" style="flex:1; min-width:50px; text-overflow:ellipsis; font-size:10px; padding:3px;" onchange="updateJalonField('${j.id}', 'link', this.value)">
+                ${window.modalTasksState.filter(t => !t.estInit).map(t => `<option value="${t.presetId}" ${j.linkedTaskId == t.presetId ? 'selected' : ''}>+ ${t.name}</option>`).join('')}
+              </select>
+              <input type="date" class="input-date" style="width:95px;" value="${toYYYYMMDD(j.date)}" onchange="updateJalonField('${j.id}', 'date', this.value)">
+              <button class="btn-remove" style="background:none; color:#e74c3c; font-size:14px; border:none; cursor:pointer; padding:0 5px;" onclick="deleteJalon('${j.id}')" title="Supprimer ce jalon">✕</button>
+            </div>
+          </div>`;
+        }
+      }).join('');
+
+      body.innerHTML = `
+        <div class="gantt-grid">
+          <div class="tasks-list" id="tasks-list-scroll" style="width: ${currentLeftWidth};">
+            <div class="task-list-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span>Tâches et Jalons</span>
+                <button class="btn-text-add secondary" style="padding: 2px 6px; font-size: 10px;" onclick="exportGanttToPDF()">📄 Exporter PDF</button>
+              </div>
+              <div style="display:flex; gap:6px; width:185px; justify-content:flex-start; align-items:flex-end; text-align:center; font-size:10px; color:#888;">
+                <span style="width:46px; line-height:1.2;">Lag<br>Avant</span>
+                <span style="width:46px; line-height:1.2;">Durée<br>contract.</span>
+                <span style="width:46px; line-height:1.2;">Lag<br>Après</span>
+                <span style="width:25px;"></span>
+              </div>
+            </div>
+            <div style="flex-grow: 1; padding-bottom: 75px;">
+              ${listHTML}
+            </div>
+            <div style="padding: 10px; display: flex; gap: 10px; border-top: 1px solid #e0e6ed; background: #f9f9fa; position: sticky; bottom: 0;">
+               <button class="btn-text-add secondary" onclick="addCustomTask()" style="flex: 1; justify-content: center;">+ Nouvelle Tâche</button>
+               <button class="btn-text-add secondary" onclick="addCustomJalon()" style="flex: 1; justify-content: center; background: var(--jalon-color);">+ Nouveau Jalon</button>
+            </div>
+          </div>
+          <div class="resizer" id="dragMe"></div>
+          <div class="gantt-container" id="gantt-container-scroll">
+            <svg id="preview-svg"></svg>
+          </div>
+        </div>`;
+
+      window.initResizer();
+      window.renderPreviewGantt();
+
+      const tScroll = document.getElementById('tasks-list-scroll');
+      const gScroll = document.getElementById('gantt-container-scroll');
+      if (tScroll && gScroll) {
+        tScroll.addEventListener('scroll', () => { gScroll.scrollTop = tScroll.scrollTop; });
+        gScroll.addEventListener('scroll', () => { tScroll.scrollTop = gScroll.scrollTop; });
+      }
+      tScroll.scrollTop = currentScrollTop;
+      gScroll.scrollTop = currentScrollTop;
+      gScroll.scrollLeft = currentScrollLeft;
+
+      // --- SAUVEGARDE REELLE (Taches + Nettoyage Brouillons) ---
+      saveBtn.onclick = async () => {
+        saveBtn.disabled = true; draftBtn.disabled = true; saveBtn.textContent = "Génération...";
+        try {
+          const actionsCrea = []; const presetIdToTacheId = {}; const todayTs = toGristTs(new Date());
+          window.modalTasksState.forEach(t => {
+            let computedEndD = t.duration > 0 ? addBusinessDays(t.startD, t.duration - 1) : t.startD;
+            let computedOpEndD = t.finOp ? t.finOp : (t.dureeOp > 0 ? addBusinessDays(t.startD, t.dureeOp - 1) : t.startD);
+            let taskData = {
+              nom_tache: t.name, livrable_associe: liv.id, duree_contractuelle_courante: t.duration, duree__contractuelle_baseline: t.duration,
+              lag_avant: t.lagAvant, lag_apres: t.lagApres, deadline_baseline: toGristTs(computedEndD), deadline_corrigee : toGristTs(computedEndD),
+              duree_operationnelle: t.dureeOp, fin_operationnelle: toGristTs(computedOpEndD), charge_tache: t.chargeId || null, 
+              fonction_requise: t.fonction || null, competence_requise: t.competence || null, profil_requis: t.profil || null, termine: t.estInit
+            };
+            if (t.estInit) taskData.date_execution = toGristTs(t.startD);
+            actionsCrea.push(["AddRecord", "Taches", null, taskData]);
+          });
+
+          const resT = await grist.docApi.applyUserActions(actionsCrea);
+          window.modalTasksState.forEach((t, idx) => { presetIdToTacheId[t.presetId] = resT.retValues[idx]; });
+
+          const actionsLiens = []; const actionsSnapshot = [];
+          window.modalTasksState.forEach(t => {
+            const realId = presetIdToTacheId[t.presetId];
+            const realInternalDeps = t.deps.map(dId => presetIdToTacheId[dId]).filter(Boolean);
+            const allDeps = [...realInternalDeps, ...(t.extDeps || [])];
+            let computedEndD = t.duration > 0 ? addBusinessDays(t.startD, t.duration - 1) : t.startD;
+            let computedOpEndD = t.finOp ? t.finOp : (t.dureeOp > 0 ? addBusinessDays(t.startD, t.dureeOp - 1) : t.startD);
+            if (allDeps.length > 0) actionsLiens.push(["UpdateRecord", "Taches", realId, { taches_precedentes_requises: ["L", ...allDeps] }]);
+            actionsSnapshot.push(["AddRecord", "Snapshot_planning", null, { 
+              etape:"Création", date_snapshot: todayTs, tache: realId, deadline_contractuelle: toGristTs(computedEndD), duree_contractuelle: t.duration,
+              lag_avant: t.lagAvant, lag_apres: t.lagApres, fin_operationnelle: toGristTs(computedOpEndD), duree_operationnelle: t.dureeOp,
+              taches_predecesseurs: allDeps.length > 0 ? ["L", ...allDeps] : null
+            }]);
+          });
+
+          const actionsJalons = [];
+          window.modalJalonsState.forEach(j => {
+              const realTaskId = j.linkedTaskId ? (presetIdToTacheId[j.linkedTaskId] || null) : null;
+              actionsJalons.push(["AddRecord", "Jalons", null, { nom_jalon: j.name, date_jalon: toGristTs(j.date), livrable_associe: liv.id, tache_associee: realTaskId }]);
+          });
+
+          await grist.docApi.applyUserActions([...actionsLiens, ...actionsSnapshot, ...actionsJalons]);
+
+          const draftsToDelete = tableData.taches_brouillons.filter(tb => tb.livrable_associe === liv.id).map(tb => ["RemoveRecord", "Taches_brouillons", tb.id]);
+          const draftJalonsToDelete = tableData.jalons_brouillons.filter(jb => jb.livrable_associe === liv.id).map(jb => ["RemoveRecord", "Jalons_brouillons", jb.id]);
+          if (draftsToDelete.length > 0 || draftJalonsToDelete.length > 0) {
+              await grist.docApi.applyUserActions([...draftsToDelete, ...draftJalonsToDelete]);
+          }
+
+          await refreshData(true); closeModal();
+        } catch (e) {
+          console.error(e); alert("Erreur lors de la génération.");
+        } finally {
+          saveBtn.disabled = false; draftBtn.disabled = false; saveBtn.textContent = "Enregistrer";
+        }
+      };
+
+      // --- LOGIQUE SAUVEGARDE BROUILLONS ---
+      draftBtn.onclick = async () => {
+        saveBtn.disabled = true; draftBtn.disabled = true; draftBtn.textContent = "Sauvegarde du brouillon...";
+        try {
+          const actionsTasksRemove = []; const actionsTasksUpdate = []; const actionsTasksAdd = [];
+          const addedTasksRef = []; const presetIdToTacheId = {};
+          const existingDraftTasks = tableData.taches_brouillons.filter(tb => tb.livrable_associe === liv.id);
+          const currentDraftTaskIds = window.modalTasksState.map(t => t.draftId).filter(Boolean);
+
+          existingDraftTasks.forEach(edt => { if (!currentDraftTaskIds.includes(edt.id)) actionsTasksRemove.push(["RemoveRecord", "Taches_brouillons", edt.id]); });
+
+          window.modalTasksState.forEach(t => {
+            let computedEndD = t.duration > 0 ? addBusinessDays(t.startD, t.duration - 1) : t.startD;
+            let computedOpEndD = t.finOp ? t.finOp : (t.dureeOp > 0 ? addBusinessDays(t.startD, t.dureeOp - 1) : t.startD);
+            let taskData = {
+              nom_tache: t.name, livrable_associe: liv.id, duree_contractuelle_courante: t.duration, duree__contractuelle_baseline: t.duration,
+              lag_avant: t.lagAvant, lag_apres: t.lagApres, deadline_baseline: toGristTs(computedEndD), deadline_corrigee : toGristTs(computedEndD),
+              duree_operationnelle: t.dureeOp, fin_operationnelle: toGristTs(computedOpEndD), charge_tache: t.chargeId || null, 
+              fonction_requise: t.fonction || null, competence_requise: t.competence || null, profil_requis: t.profil || null, termine: t.estInit
+            };
+            if (t.estInit) taskData.date_execution = toGristTs(t.startD);
+
+            if (t.draftId) { actionsTasksUpdate.push(["UpdateRecord", "Taches_brouillons", t.draftId, taskData]); presetIdToTacheId[t.presetId] = t.draftId; } 
+            else { actionsTasksAdd.push(["AddRecord", "Taches_brouillons", null, taskData]); addedTasksRef.push(t); }
+          });
+
+          if (actionsTasksRemove.length > 0) await grist.docApi.applyUserActions(actionsTasksRemove);
+          if (actionsTasksUpdate.length > 0) await grist.docApi.applyUserActions(actionsTasksUpdate);
+          if (actionsTasksAdd.length > 0) {
+              const resAdd = await grist.docApi.applyUserActions(actionsTasksAdd);
+              addedTasksRef.forEach((t, idx) => { presetIdToTacheId[t.presetId] = resAdd.retValues[idx]; t.draftId = resAdd.retValues[idx]; });
+          }
+
+          const actionsLiens = [];
+          window.modalTasksState.forEach(t => {
+            const realId = presetIdToTacheId[t.presetId];
+            const realInternalDeps = t.deps.map(dId => presetIdToTacheId[dId]).filter(Boolean);
+            actionsLiens.push(["UpdateRecord", "Taches_brouillons", realId, { taches_precedentes_requises: realInternalDeps.length > 0 ? ["L", ...realInternalDeps] : null }]);
+          });
+          if (actionsLiens.length > 0) await grist.docApi.applyUserActions(actionsLiens);
+
+          const actionsJalonsRemove = []; const actionsJalonsUpdate = []; const actionsJalonsAdd = [];
+          const existingDraftJalons = tableData.jalons_brouillons.filter(jb => jb.livrable_associe === liv.id);
+          const currentDraftJalonIds = window.modalJalonsState.map(j => j.draftId).filter(Boolean);
+
+          existingDraftJalons.forEach(edj => { if (!currentDraftJalonIds.includes(edj.id)) actionsJalonsRemove.push(["RemoveRecord", "Jalons_brouillons", edj.id]); });
+
+          window.modalJalonsState.forEach(j => {
+              const realTaskId = j.linkedTaskId ? (presetIdToTacheId[j.linkedTaskId] || null) : null;
+              let jalonData = { nom_jalon: j.name, date_jalon: toGristTs(j.date), livrable_associe: liv.id, tache_associee: realTaskId };
+              if (j.draftId) actionsJalonsUpdate.push(["UpdateRecord", "Jalons_brouillons", j.draftId, jalonData]);
+              else actionsJalonsAdd.push(["AddRecord", "Jalons_brouillons", null, jalonData]);
+          });
+
+          if (actionsJalonsRemove.length > 0) await grist.docApi.applyUserActions(actionsJalonsRemove);
+          if (actionsJalonsUpdate.length > 0) await grist.docApi.applyUserActions(actionsJalonsUpdate);
+          if (actionsJalonsAdd.length > 0) await grist.docApi.applyUserActions(actionsJalonsAdd);
+
+          await refreshData(true); closeModal();
+        } catch (e) {
+          console.error(e); alert("Erreur lors de la sauvegarde du brouillon.");
+        } finally {
+          saveBtn.disabled = false; draftBtn.disabled = false; draftBtn.textContent = "Sauvegarder le brouillon";
+        }
+      };
+    };
+
+    window.updateGoDate = function (val) { if (!val) return; window.modalLivGoDate = new Date(val); window.renderPreviewGantt(); };
+    window.updateTaskField = function (index, field, newVal) { 
+        if (field === 'chargeId') window.modalTasksState[index][field] = parseInt(newVal) || null;
+        else window.modalTasksState[index][field] = parseInt(newVal) || 0; 
+        window.renderPreviewGantt(); 
+    };
+    window.updateJalonField = function (jalonId, field, val) {
+      const j = window.modalJalonsState.find(x => String(x.id) === String(jalonId));
+      if (!j) return;
+      if (field === 'link') {
+        j.linkedTaskId = val ? parseInt(val) : null;
+        const scrollPos = document.getElementById('tasks-list-scroll').scrollTop;
+        const liv = tableData.livrables.find(l => l.id === selectedLivrableId);
+        renderGanttInterface(liv);
+        document.getElementById('tasks-list-scroll').scrollTop = scrollPos;
+      } else if (field === 'date') { j.date = new Date(val); window.renderPreviewGantt(); } 
+      else if (field === 'name') { j.name = val; window.renderPreviewGantt(); }
+    };
+
+    window.renderPreviewGantt = function () {
+      const svg = document.getElementById('preview-svg'); if (!svg) return; svg.innerHTML = '';
+      let idToTask = {}; window.modalTasksState.forEach(t => idToTask[t.presetId] = t);
+
+      window.modalTasksState.forEach(t => {
+        if (t.estInit) { 
+            t.startD = addBusinessDays(new Date(window.modalLivGoDate), 0); t.endD = t.startD; t.startOpD = t.startD; t.endOpD = t.startD; return; 
+        }
+        let startBase = addBusinessDays(new Date(window.modalLivGoDate), 0);
+        if (t.deps && t.deps.length > 0) {
+          let maxEnd = new Date(0);
+          t.deps.forEach(depId => { let p = idToTask[depId]; if (p) { let pEndWithLag = addBusinessDays(p.endD, p.lagApres); if (pEndWithLag > maxEnd) maxEnd = pEndWithLag; } });
+          if (maxEnd.getTime() > 0) startBase = maxEnd;
+        }
+        t.startD = addBusinessDays(startBase, t.lagAvant);
+        t.endD = addBusinessDays(t.startD, t.duration);
+        
+        if (t.finOp) {
+            t.endOpD = addBusinessDays(new Date(t.finOp), 1); t.startOpD = subtractBusinessDays(t.endOpD, t.dureeOp);
+        } else {
+            t.startOpD = new Date(t.startD); t.endOpD = addBusinessDays(t.startOpD, t.dureeOp);
+        }
+      });
+
+      let allDates = [
+        ...window.modalTasksState.map(t => t.startD.getTime()), ...window.modalTasksState.map(t => t.endD.getTime()), 
+        ...window.modalTasksState.map(t => t.startOpD.getTime()), ...window.modalTasksState.map(t => t.endOpD.getTime()), 
+        ...window.modalJalonsState.map(j => j.date.getTime())
+      ];
+      let minDate = new Date(Math.min(...allDates)); let maxDate = new Date(Math.max(...allDates));
+      minDate.setDate(minDate.getDate() - 1); maxDate.setDate(maxDate.getDate() + 3);
+
+      const DAY_WIDTH = 25, ROW_HEIGHT = 40, HEADER_HEIGHT = 50, LEFT_MARGIN = 20;
+      const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+      const totalRowsGantt = window.displayList.length;
+
+      svg.setAttribute('width', LEFT_MARGIN + totalDays * DAY_WIDTH);
+      svg.setAttribute('height', Math.max(HEADER_HEIGHT + totalRowsGantt * ROW_HEIGHT, 100));
+
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", 'defs');
+      defs.innerHTML = `<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dep-color)"/></marker>
+                        <marker id="arrow-jalon" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--jalon-color)"/></marker>`;
+      svg.appendChild(defs);
+
+      const getX = date => LEFT_MARGIN + Math.floor((date - minDate) / (1000 * 60 * 60 * 24)) * DAY_WIDTH;
+
+      let currentMonth = -1;
+      for (let i = 0; i <= totalDays; i++) {
+        const d = new Date(minDate); d.setDate(d.getDate() + i);
+        const xPos = LEFT_MARGIN + i * DAY_WIDTH;
+        if (d.getMonth() !== currentMonth || i === 0) {
+          currentMonth = d.getMonth();
+          const formattedMonth = d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+          svg.innerHTML += `<text x="${xPos + 5}" y="18" class="gantt-month">${formattedMonth.charAt(0).toUpperCase() + formattedMonth.slice(1)}</text>`;
+          svg.innerHTML += `<line x1="${xPos}" y1="0" x2="${xPos}" y2="${HEADER_HEIGHT}" class="gantt-line" stroke="#ccc"/>`;
+        }
+        if (d.getDay() === 0 || d.getDay() === 6) svg.innerHTML += `<rect x="${xPos}" y="${HEADER_HEIGHT}" width="${DAY_WIDTH}" height="1000" fill="#f5f7f8"/>`;
+        svg.innerHTML += `<line x1="${xPos}" y1="${HEADER_HEIGHT / 2}" x2="${xPos}" y2="1000" class="gantt-line"/>`;
+        svg.innerHTML += `<text x="${xPos + DAY_WIDTH / 2}" y="${HEADER_HEIGHT - 5}" class="gantt-day" fill="${d.getDay() === 0 || d.getDay() === 6 ? '#bbb' : '#888'}">${d.getDate()}</text>`;
+      }
+      svg.innerHTML += `<line x1="0" y1="${HEADER_HEIGHT}" x2="10000" y2="${HEADER_HEIGHT}" stroke="#e0e6ed" stroke-width="2"/>`;
+
+      window.displayList.forEach((item, rowIndex) => {
+        const yCenter = HEADER_HEIGHT + rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+        const rowY = HEADER_HEIGHT + rowIndex * ROW_HEIGHT;
+        const hoverId = item.type === 'task' ? `task-${item.data.presetId}` : `jalon-${item.data.id}`;
+        
+        svg.innerHTML += `<rect x="0" y="${rowY}" width="10000" height="${ROW_HEIGHT}" fill="transparent" class="gantt-row-hover" onmouseover="highlightListItem('${hoverId}')" onmouseout="removeHighlightListItem('${hoverId}')" />`;
+        svg.innerHTML += `<line x1="0" y1="${rowY + ROW_HEIGHT}" x2="10000" y2="${rowY + ROW_HEIGHT}" class="gantt-line"/>`;
+
+        if (item.type === 'task') {
+          const t = item.data;
+          const tIdx = window.modalTasksState.findIndex(x => x.presetId === t.presetId);
+          const startX = getX(t.startD);
+          
+          const startStr = t.startD.toLocaleDateString('fr-FR'); const endStr = t.endD.toLocaleDateString('fr-FR');
+          const chargeName = t.chargeId ? (tableData.employes.find(e => e.id === t.chargeId)?.nom_employe || '') : 'Non assigné';
+          const safeName = (t.name || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+          const tooltipText = `${safeName}\nAssigné à : ${chargeName}\nDébut : ${startStr}\nFin : ${endStr}\nDurée (Contrat) : ${t.duration}j\nDurée (Opé) : ${t.dureeOp}j`;
+
+          if (t.estInit || (t.duration === 0 && t.dureeOp === 0)) {
+            const rx = startX + DAY_WIDTH / 2;
+            svg.innerHTML += `<path d="M ${rx} ${yCenter - 8} L ${rx + 8} ${yCenter} L ${rx} ${yCenter + 8} L ${rx - 8} ${yCenter} Z" fill="green" style="cursor:pointer; pointer-events:all;" onclick="openTaskModal(${tIdx})"><title>${tooltipText}</title></path>`;
+          } else {
+            const wCont = Math.max(getX(t.endD) - startX, 4);
+            const startOpX = getX(t.startOpD); const wOp = Math.max(getX(t.endOpD) - startOpX, 4);
+            svg.innerHTML += `<rect x="${startX}" y="${yCenter - 11}" width="${wCont}" height="22" class="gantt-bar-contractual" rx="3" style="cursor:pointer; pointer-events:all;" onclick="openTaskModal(${tIdx})"><title>${tooltipText}</title></rect>
+                              <rect x="${startOpX}" y="${yCenter - 16}" width="${wOp}" height="32" class="gantt-bar-operational" rx="3" style="cursor:pointer; pointer-events:all;" onclick="openTaskModal(${tIdx})"><title>${tooltipText}</title></rect>`;
+          }
+        } else {
+          const j = item.data; const startX = getX(j.date); const rx = startX + DAY_WIDTH / 2;
+          svg.innerHTML += `<path d="M ${rx} ${yCenter - 8} L ${rx + 8} ${yCenter} L ${rx} ${yCenter + 8} L ${rx - 8} ${yCenter} Z" class="gantt-jalon"/>`;
+        }
+      });
+
+      const getRowIndex = (type, id) => window.displayList.findIndex(x => x.type === type && x.id === id);
+
+      window.displayList.forEach((item, rowIndex) => {
+        const yCenter = HEADER_HEIGHT + rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+        if (item.type === 'task') {
+          const t = item.data; if (!t.deps || t.deps.length === 0) return;
+          const targetX = getX(t.startD) + (t.estInit || t.duration === 0 ? DAY_WIDTH / 2 : 0);
+          t.deps.forEach(dId => {
+            const pIndex = getRowIndex('task', dId); if (pIndex === -1) return;
+            const pTask = window.displayList[pIndex].data; const yPrev = HEADER_HEIGHT + pIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+            const xPrev = getX(pTask.endD) + (pTask.estInit || pTask.duration === 0 ? DAY_WIDTH * 0.5 : 0);
+            let pathD = xPrev < targetX - 15 ? `M ${xPrev} ${yPrev} H ${xPrev + 10} V ${yCenter} H ${targetX - 5}` : `M ${xPrev} ${yPrev} H ${xPrev + 10} V ${yPrev + ROW_HEIGHT / 2} H ${targetX - 20} V ${yCenter} H ${targetX - 5}`;
+            svg.innerHTML += `<path d="${pathD}" fill="none" stroke="var(--dep-color)" stroke-width="2" marker-end="url(#arrow)" style="stroke-linejoin:round;"/>`;
+          });
+        } else if (item.type === 'jalon') {
+          const j = item.data; if (!j.linkedTaskId) return;
+          const targetX = getX(j.date); const pIndex = getRowIndex('task', j.linkedTaskId); if (pIndex === -1) return;
+          const pTask = window.displayList[pIndex].data; const yPrev = HEADER_HEIGHT + pIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+          const xPrev = getX(pTask.endD) + (pTask.estInit || pTask.duration === 0 ? DAY_WIDTH * 0.5 : 0);
+          let pathD = xPrev < targetX - 15 ? `M ${xPrev} ${yPrev} H ${xPrev + 10} V ${yCenter} H ${targetX - 8}` : `M ${xPrev} ${yPrev} H ${xPrev + 10} V ${yPrev + ROW_HEIGHT / 2} H ${targetX - 20} V ${yCenter} H ${targetX - 8}`;
+          svg.innerHTML += `<path d="${pathD}" fill="none" stroke="var(--jalon-color)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-jalon)" style="stroke-linejoin:round;"/>`;
+        }
+      });
+
+      window.exportGanttToPDF = function() {
+        document.body.classList.add('is-printing');
+        const svg = document.getElementById('preview-svg'); const tasksList = document.getElementById('tasks-list-scroll'); const grid = document.querySelector('.gantt-grid');
+        const totalWidth = tasksList.offsetWidth + parseFloat(svg.getAttribute('width')) + 20; const scale = Math.min(1, 1050 / totalWidth);
+        const oldZoom = grid.style.zoom || ''; grid.style.zoom = scale;
+        setTimeout(() => { window.focus(); window.print(); grid.style.zoom = oldZoom; document.body.classList.remove('is-printing'); }, 300);
+      };
+    };
+
+  // Fermeture de la modale principale (Canva, formulaires...) au clic extérieur
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
+
+  // Fermeture de la sous-modale d'édition de tâche au clic extérieur
+  document.getElementById('task-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      cancelTaskModal();
+    }
+  });
+
+  // Ouvre le canva des livrables sans fermer le canva des affaires
+window.openLivrablesMapFromNode = function(affaireId) {
+  affaireSel.value = affaireId;
+  affaireSel.dispatchEvent(new Event('change'));
+  
+  setTimeout(() => {
+    openModal('drawflow_map_livrables', null, true); // "true" active la modale empilée
+  }, 100);
+};
+
+// Ferme uniquement la modale empilée des livrables
+window.closeStackedModal = function() {
+  document.getElementById('modal-stacked').style.display = 'none';
+  if (window.stackedDrawflowEditor) {
+     window.stackedDrawflowEditor.clear();
+     window.stackedDrawflowEditor = null;
+  }
+};
+
+// Fermeture de la modale empilée au clic extérieur
+document.getElementById('modal-stacked').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeStackedModal();
+  }
+});
+
+// Gestion de la touche Échap pour fermer les modales ouvertes (du premier au arrière-plan)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' || e.key === 'Esc') {
+    const taskModal = document.getElementById('task-modal');
+    const stackedModal = document.getElementById('modal-stacked');
+    const mainModal = document.getElementById('modal');
+
+    // On ferme d'abord l'édition de tâche si elle est ouverte
+    if (taskModal && taskModal.style.display === 'flex') {
+      cancelTaskModal();
+    } 
+    // Sinon, on ferme la carte des livrables si elle est ouverte
+    else if (stackedModal && stackedModal.style.display === 'flex') {
+      closeStackedModal();
+    } 
+    // Sinon, on ferme la modale principale standard
+    else if (mainModal && mainModal.style.display === 'flex') {
+      closeModal();
+    }
+  }
+});
+
+
+// Gérer le double-clic sur un livrable pour masquer le canva et ouvrir le formulaire d'édition
+window.triggerEditFromLivrablesMap = function(livId) {
+  const isStackedOpen = (document.getElementById('modal-stacked').style.display === 'flex');
+  
+  if (isStackedOpen) {
+    // Mode Empilé : on mémorise le retour empilé et on masque temporairement le canva des livrables
+    window.returnToMapStacked = true;
+    document.getElementById('modal-stacked').style.display = 'none';
+  } else {
+    // Mode Standard : on mémorise le retour classique et closeModal fermera le canva des livrables
+    window.returnToMap = true;
+  }
+  
+  // Ouvrir le formulaire d'édition dans la modale principale
+  openModal('edit_livrable', livId);
+};
+
+
+
+// Gérer le clic de création d'un nouveau livrable depuis la carte
+window.triggerAddLivrableFromMap = function() {
+  const isStackedOpen = (document.getElementById('modal-stacked').style.display === 'flex');
+  
+  if (isStackedOpen) {
+    // Mode Empilé : on mémorise le retour empilé et on masque temporairement le canva des livrables
+    window.returnToMapStacked = true;
+    document.getElementById('modal-stacked').style.display = 'none';
+  } else {
+    // Mode Standard : on mémorise le retour classique
+    window.returnToMap = true;
+  }
+  
+  // Ouvrir le formulaire de création dans la modale principale
+  openModal('livrable');
+};
+
+
+    grist.ready({ requiredAccess: 'full', allowSelectBy: true });
+    grist.onRecords(async () => {
+      if (isInternalChange) return;
+      await refreshData(true);
+      if (isFirstLoad) { restoreSelection(); isFirstLoad = false; }
+    });
+
+
+</script>
+</body>
+</html>
