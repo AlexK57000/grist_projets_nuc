@@ -235,9 +235,16 @@
     .drawflow .drawflow-node .input { background: #3b82f6; }
     .drawflow .drawflow-node .output { background: #10b981; }
     .drawflow_delete_node { display: none !important; }
-    .drawflow .connection .main-path { stroke: #64748b; stroke-width: 3px; }
+    .drawflow .connection .main-path { 
+      stroke: #64748b; 
+      stroke-width: 3px; 
+      marker-end: url(#arrow-drawflow); /* Applique la flèche grise par défaut */
+    }
     .drawflow .connection .main-path:hover { stroke: #ef4444; cursor: pointer; }
-    .drawflow .connection.selected .main-path { stroke: #ef4444; }
+    .drawflow .connection.selected .main-path { 
+      stroke: #ef4444; 
+      marker-end: url(#arrow-drawflow-selected); /* Applique la flèche rouge */
+    }
     /* Couleur de fond des cartes sélectionnées (remplace le rouge flashy par le vert anis clair de l'application) */
     
     .drawflow-toolbar { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
@@ -247,26 +254,26 @@
     .drawflow-node-eye-btn {
       display: none; /* Masqué par défaut */
       position: absolute;
-      right: -22px;
-      top: 18px; /* Positionné juste en dessous du bouton de suppression natif */
-      background: #f1c40f; /* Couleur jaune */
+      right: -15px;
+      top: 20px; /* Positionné juste en dessous du bouton de suppression natif */
+      background: var(--primary) ; /* Couleur jaune #f1c40f */
       color: #2c3e50;
-      border: 2px solid white;
+      border: 2px solid gray;
       border-radius: 50%;
-      width: 44px;
-      height: 44px;
+      width: 30px;
+      height: 30px;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 20px;
+      font-size: 16px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       z-index: 10;
       transition: transform 0.1s ease;
     }
 
     .drawflow-node-eye-btn:hover {
-      transform: scale(1.1);
-      background: #f39c12;
+      transform: scale(1.2);
+      background: var(--primary-hover) ; /* Couleur jaune ##f39c12 */;
     }
 
     /* Affiche l'œil au survol de la carte OU lorsque la carte est sélectionnée */
@@ -297,6 +304,30 @@
       gap: 3px;
     }
 
+    /* --- INTERACTION DES PORTS D'ENTRÉE (RONS BLEUS) --- */
+
+    /* 1. Masque tous les ports d'entrée par défaut */
+    .drawflow .drawflow-node .inputs .input {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s ease, visibility 0s 0.2s;
+    }
+
+    /* 2. Les affiche si le canva est en phase de tracé OU si le port est déjà connecté */
+    .drawing-connection .drawflow-node .inputs .input,
+    .drawflow .drawflow-node .inputs .input.has-connection {
+      visibility: visible;
+      opacity: 1;
+      transition: opacity 0.2s ease, visibility 0s 0s;
+    }
+
+    /* 3. Masque spécifiquement l'entrée de la carte d'où part le tracé de la flèche */
+    .drawing-connection .drawflow-node.drawing-from-this .inputs .input {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      transition: none !important;
+    }
+
     /* --- REGLES POUR L'EXPORT PDF NATIVE --- */
     @media print {
       @page { size: landscape; margin: 5mm; }
@@ -314,6 +345,20 @@
   </style>
 </head>
 <body>
+
+  <!-- Définition des flèches directionnelles SVG -->
+  <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Flèche grise par défaut -->
+      <marker id="arrow-drawflow" viewBox="0 0 10 10" refX="12" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#64748b" />
+      </marker>
+      <!-- Flèche rouge lorsque la connexion est sélectionnée -->
+      <marker id="arrow-drawflow-selected" viewBox="0 0 10 10" refX="12" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ef4444" />
+      </marker>
+    </defs>
+  </svg>
 
   <!-- BARRE DE FILTRES EN LIGNE -->
   <div class="filters-bar">
@@ -1114,10 +1159,18 @@
           editor.start();
           // ACTIVER LE ZOOM SUR LE POINTEUR ICI
           enablePointerZoomOnWheel(editor, "drawflow-container");
+          setupDrawflowInteractivePorts(editor, "drawflow-container");
 
           editor.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value, type) {
             const center_y = ((end_pos_y - start_pos_y) / 2) + start_pos_y;
-            return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + start_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
+            const dx = end_pos_x - start_pos_x;
+            
+            // On décale les points de contrôle de 15% de l'écart horizontal (dx)
+            // pour donner une légère inclinaison naturelle d'entrée au niveau de la flèche
+            const cp1_x = start_pos_x + dx * 0.35;
+            const cp2_x = end_pos_x - dx * 0.35;
+            
+            return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + cp1_x + ' ' + center_y + ' ' + cp2_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
           }
           
           document.getElementById('drawflow-container').addEventListener('contextmenu', e => e.preventDefault());
@@ -1227,6 +1280,7 @@
                 editor.updateConnectionNodes('node-' + gristToDrawflow[gristId]);
               });
               fitDrawflowToScreen(editor); // <-- Ajuste le zoom et centre automatiquement
+              updateInputConnectionClasses(editor, "drawflow-container");
             }, 120);
           }
 
@@ -1407,10 +1461,17 @@
 
           // ACTIVER LE ZOOM SUR LE POINTEUR ICI
           enablePointerZoomOnWheel(editor, "drawflow-container-livrables");
+          setupDrawflowInteractivePorts(editor, "drawflow-container-livrables");
 
           editor.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y) {
             const center_y = ((end_pos_y - start_pos_y) / 2) + start_pos_y;
-            return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + start_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
+            const dx = end_pos_x - start_pos_x;
+            
+            // Même ajustement géométrique pour la carte des livrables
+            const cp1_x = start_pos_x + dx * 0.35;
+            const cp2_x = end_pos_x - dx * 0.35;
+            
+            return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + cp1_x + ' ' + center_y + ' ' + cp2_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
           }
           
           document.getElementById('drawflow-container-livrables').addEventListener('contextmenu', e => e.preventDefault());
@@ -1491,6 +1552,7 @@
             setTimeout(() => {
               Object.keys(gristToDrawflow).forEach(gristId => { editor.updateConnectionNodes('node-' + gristToDrawflow[gristId]); });
               fitDrawflowToScreen(editor); // <-- Ajuste le zoom et centre automatiquement
+              updateInputConnectionClasses(editor, "drawflow-container-livrables");
             }, 120);
           }
 
@@ -3369,7 +3431,7 @@ window.triggerAddLivrableFromMap = function() {
     const graphHeight = maxY - minY;
 
     // Marge de sécurité autour des nœuds pour qu'ils ne touchent pas le bord de l'écran
-    const padding = 40; 
+    const padding = 25; 
     const availableWidth = containerWidth - padding * 2;
     const availableHeight = containerHeight - padding * 2;
 
@@ -3416,89 +3478,162 @@ window.triggerAddLivrableFromMap = function() {
 
 
 
-  function zoomCentered(editor, zoomIn) {
-  const container = editor.container;
-  if (!container) return;
-  const containerWidth = container.clientWidth;
-  const containerHeight = container.clientHeight;
-  if (containerWidth === 0 || containerHeight === 0) return;
+    function zoomCentered(editor, zoomIn) {
+    const container = editor.container;
+    if (!container) return;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    if (containerWidth === 0 || containerHeight === 0) return;
 
-  const containerCenterX = containerWidth / 2;
-  const containerCenterY = containerHeight / 2;
+    const containerCenterX = containerWidth / 2;
+    const containerCenterY = containerHeight / 2;
 
-  // Identification du point virtuel du canva situé actuellement au centre de l'écran
-  const currentGraphCenterX = (containerCenterX - editor.canvas_x) / editor.zoom;
-  const currentGraphCenterY = (containerCenterY - editor.canvas_y) / editor.zoom;
+    // Identification du point virtuel du canva situé actuellement au centre de l'écran
+    const currentGraphCenterX = (containerCenterX - editor.canvas_x) / editor.zoom;
+    const currentGraphCenterY = (containerCenterY - editor.canvas_y) / editor.zoom;
 
-  const zoomStep = 0.1;
-  let newZoom = editor.zoom + (zoomIn ? zoomStep : -zoomStep);
-  newZoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, newZoom));
+    const zoomStep = 0.1;
+    let newZoom = editor.zoom + (zoomIn ? zoomStep : -zoomStep);
+    newZoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, newZoom));
 
-  // Ajustement de la translation pour garder ce même point virtuel au centre de l'écran
-  const canvas_x = containerCenterX - (currentGraphCenterX * newZoom);
-  const canvas_y = containerCenterY - (currentGraphCenterY * newZoom);
+    // Ajustement de la translation pour garder ce même point virtuel au centre de l'écran
+    const canvas_x = containerCenterX - (currentGraphCenterX * newZoom);
+    const canvas_y = containerCenterY - (currentGraphCenterY * newZoom);
 
-  editor.zoom = newZoom;
-  editor.canvas_x = canvas_x;
-  editor.canvas_y = canvas_y;
-  editor.zoom_last_value = newZoom;
+    editor.zoom = newZoom;
+    editor.canvas_x = canvas_x;
+    editor.canvas_y = canvas_y;
+    editor.zoom_last_value = newZoom;
 
-  if (editor.precanvas) {
-    editor.precanvas.style.transformOrigin = "0 0";
-    editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${newZoom})`;
+    if (editor.precanvas) {
+      editor.precanvas.style.transformOrigin = "0 0";
+      editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${newZoom})`;
+    }
+
+    if (typeof editor.zoom_refresh === 'function') {
+      editor.zoom_refresh();
+    }
   }
 
-  if (typeof editor.zoom_refresh === 'function') {
-    editor.zoom_refresh();
+
+
+
+  function enablePointerZoomOnWheel(editor, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.addEventListener('wheel', function(e) {
+      // Par défaut, nous conservons le raccourci standard : Ctrl + Molette pour zoomer
+      // Si vous souhaitez zoomer SANS appuyer sur Ctrl, retirez simplement la condition "if (e.ctrlKey)"
+      if (e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Coordonnées du point sous le curseur dans l'espace virtuel du canva
+        const graphX = (mouseX - editor.canvas_x) / editor.zoom;
+        const graphY = (mouseY - editor.canvas_y) / editor.zoom;
+
+        // Calcul du nouveau niveau de zoom
+        const zoomStep = 0.05; // Pas de zoom à chaque cran de molette (ajustable)
+        let newZoom = editor.zoom + (e.deltaY < 0 ? zoomStep : -zoomStep);
+        newZoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, newZoom));
+
+        // Calcul des nouvelles translations pour maintenir le point virtuel sous la souris
+        const canvas_x = mouseX - (graphX * newZoom);
+        const canvas_y = mouseY - (graphY * newZoom);
+
+        editor.zoom = newZoom;
+        editor.canvas_x = canvas_x;
+        editor.canvas_y = canvas_y;
+        editor.zoom_last_value = newZoom;
+
+        if (editor.precanvas) {
+          editor.precanvas.style.transformOrigin = "0 0";
+          editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${newZoom})`;
+        }
+
+        if (typeof editor.zoom_refresh === 'function') {
+          editor.zoom_refresh();
+        }
+      }
+    }, { capture: true, passive: false }); // "capture: true" intercepte l'événement avant Drawflow
   }
-}
 
 
 
+      // Scanne le modèle de données Drawflow pour marquer les ports d'entrée connectés
+  function updateInputConnectionClasses(editor, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-function enablePointerZoomOnWheel(editor, containerId) {
+    // Réinitialise tous les ports d'entrée du conteneur
+    container.querySelectorAll('.inputs .input').forEach(el => el.classList.remove('has-connection'));
+
+    // Détermine le module actif de l'éditeur
+    const moduleName = editor.module || 'Home';
+    const data = editor.drawflow.drawflow[moduleName].data;
+
+    // Parcours des nœuds pour identifier ceux qui ont une connexion entrante
+    for (let nodeId in data) {
+      const node = data[nodeId];
+      if (node.inputs) {
+        for (let inputKey in node.inputs) {
+          const conn = node.inputs[inputKey].connections;
+          if (conn && conn.length > 0) {
+            const nodeEl = container.querySelector(`#node-${nodeId}`);
+            if (nodeEl) {
+              const inputEl = nodeEl.querySelector(`.${inputKey}`);
+              if (inputEl) {
+                inputEl.classList.add('has-connection');
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Enregistre les écouteurs d'événements pour animer les transitions de tracé de lien
+function setupDrawflowInteractivePorts(editor, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  container.addEventListener('wheel', function(e) {
-    // Par défaut, nous conservons le raccourci standard : Ctrl + Molette pour zoomer
-    // Si vous souhaitez zoomer SANS appuyer sur Ctrl, retirez simplement la condition "if (e.ctrlKey)"
-    if (e.ctrlKey) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const rect = container.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
-      // Coordonnées du point sous le curseur dans l'espace virtuel du canva
-      const graphX = (mouseX - editor.canvas_x) / editor.zoom;
-      const graphY = (mouseY - editor.canvas_y) / editor.zoom;
-
-      // Calcul du nouveau niveau de zoom
-      const zoomStep = 0.05; // Pas de zoom à chaque cran de molette (ajustable)
-      let newZoom = editor.zoom + (e.deltaY < 0 ? zoomStep : -zoomStep);
-      newZoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, newZoom));
-
-      // Calcul des nouvelles translations pour maintenir le point virtuel sous la souris
-      const canvas_x = mouseX - (graphX * newZoom);
-      const canvas_y = mouseY - (graphY * newZoom);
-
-      editor.zoom = newZoom;
-      editor.canvas_x = canvas_x;
-      editor.canvas_y = canvas_y;
-      editor.zoom_last_value = newZoom;
-
-      if (editor.precanvas) {
-        editor.precanvas.style.transformOrigin = "0 0";
-        editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${newZoom})`;
-      }
-
-      if (typeof editor.zoom_refresh === 'function') {
-        editor.zoom_refresh();
+  // Début du tracé : affiche tous les ronds bleus, sauf celui du nœud de départ
+  editor.on('connectionStart', (e) => {
+    container.classList.add('drawing-connection');
+    
+    // Détermine l'ID du nœud de départ (s'adapte à la structure de données de l'événement Drawflow)
+    const startNodeId = (e && typeof e === 'object' && e.output_id !== undefined) ? e.output_id : e;
+    
+    if (startNodeId) {
+      const startNodeEl = container.querySelector(`#node-${startNodeId}`);
+      if (startNodeEl) {
+        startNodeEl.classList.add('drawing-from-this');
       }
     }
-  }, { capture: true, passive: false }); // "capture: true" intercepte l'événement avant Drawflow
+  });
+
+  // Annulation du tracé (relâché dans le vide) : masque à nouveau et nettoie la classe temporaire
+  editor.on('connectionCancel', () => {
+    container.classList.remove('drawing-connection');
+    container.querySelectorAll('.drawing-from-this').forEach(el => el.classList.remove('drawing-from-this'));
+  });
+
+  // Lien créé avec succès : masque les ronds, nettoie et met à jour l'état du port d'entrée
+  editor.on('connectionCreated', () => {
+    container.classList.remove('drawing-connection');
+    container.querySelectorAll('.drawing-from-this').forEach(el => el.classList.remove('drawing-from-this'));
+    updateInputConnectionClasses(editor, containerId);
+  });
+
+  // Lien supprimé : met à jour l'état du port d'entrée
+  editor.on('connectionRemoved', () => {
+    updateInputConnectionClasses(editor, containerId);
+  });
 }
 
 
