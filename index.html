@@ -18,7 +18,7 @@
 
     /* --- FILTRES HORIZONTAUX --- */
     .filters-bar { display: flex; flex-direction: row; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
-    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 350px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 300px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .filter-card label { 
   font-size: 11px; font-weight: bold; color: #555; margin-bottom: 8px; 
   text-transform: uppercase; letter-spacing: 0.5px;
@@ -95,7 +95,14 @@
     
     .modal-content.large { width: 95vw; max-width: 1800px; height: 90vh; display: flex; flex-direction: column; }
     .modal-content.medium { width: 50vw; }
-    #modal-body.full-height { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    /* Étirer le corps des deux modales (affaires et livrables) sur toute la hauteur disponible */
+    #modal-body.full-height, #modal-body-stacked.full-height { 
+      flex: 1; 
+      min-height: 0; 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
+    }
 
     .modal-content h3 { margin: 0 0 5px 0; font-size: 16px; color: #333; }
     .modal-field { display: flex; flex-direction: column; gap: 5px; }
@@ -184,16 +191,31 @@
     .row-real-tasks:hover td { background-color: #f0f4f8; }
 
     /* --- STYLES DRAWFLOW POUR LA MODALE --- */
-    #drawflow { width: 100%; height: 100%; background-size: 25px 25px; background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-color: #f8fafc; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid #e0e6ed; }
+    /* Appliquer les styles et le positionnement relatif requis à tous les canvas Drawflow */
+    #drawflow, #drawflow-container, #drawflow-container-livrables { 
+      width: 100%; 
+      height: 100%; 
+      background-size: 25px 25px; 
+      background-image: radial-gradient(#e2e8f0 1px, transparent 1px); 
+      background-color: #f8fafc; 
+      position: relative; 
+      border-radius: 8px; 
+      overflow: hidden; 
+      border: 1px solid #e0e6ed; 
+    }
     .drawflow .drawflow-node { display: flex; flex-direction: column; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); min-width: 220px; max-width: 280px; color: #1e293b; z-index: 2; }
     .drawflow .drawflow-node:hover { border-color: #94a3b8; }
-    .drawflow .drawflow-node.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+    .drawflow .drawflow-node.selected {
+      background-color: var(--contractual-color) !important;
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.3) !important; /* Lueur verte */
+    }
     .drawflow-card-content { display: flex; flex-direction: column; gap: 6px; text-align: left; }
-    .drawflow-node-title { font-weight: 700; color: #0f172a; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 4px; word-wrap: break-word; }
+    .drawflow-node-title { font-weight: 700; color: #0f172a; font-size: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 4px; word-wrap: break-word; }
     .drawflow-node-details { display: flex; flex-direction: column; gap: 4px; }
-    .drawflow-node-detail { font-size: 11px; color: #475569; display: flex; justify-content: space-between; gap: 10px; }
+    .drawflow-node-detail { font-size: 15px; color: #475569; display: flex; justify-content: space-between; gap: 10px; }
     .drawflow-node-detail strong { color: #64748b; }
-    .drawflow-rating-badge { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; color: #0f172a; }
+    .drawflow-rating-badge { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 15px; color: #0f172a; }
     .drawflow .drawflow-node .inputs, .drawflow .drawflow-node .outputs { position: absolute; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: center; width: auto; height: auto; z-index: 5; }
     .drawflow .drawflow-node .inputs { top: -6px; }
     .drawflow .drawflow-node .outputs { bottom: -6px; }
@@ -204,9 +226,64 @@
     .drawflow .connection .main-path { stroke: #64748b; stroke-width: 3px; }
     .drawflow .connection .main-path:hover { stroke: #ef4444; cursor: pointer; }
     .drawflow .connection.selected .main-path { stroke: #ef4444; }
+    /* Couleur de fond des cartes sélectionnées (remplace le rouge flashy par le vert anis clair de l'application) */
+    
     .drawflow-toolbar { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
     .drawflow-toolbar button { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; width: 36px; height: 36px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s; }
     .drawflow-toolbar button:hover { background: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
+    /* Bouton œil (point jaune) sur la carte affaire */
+    .drawflow-node-eye-btn {
+      display: none; /* Masqué par défaut */
+      position: absolute;
+      right: -22px;
+      top: 18px; /* Positionné juste en dessous du bouton de suppression natif */
+      background: #f1c40f; /* Couleur jaune */
+      color: #2c3e50;
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 10;
+      transition: transform 0.1s ease;
+    }
+
+    .drawflow-node-eye-btn:hover {
+      transform: scale(1.1);
+      background: #f39c12;
+    }
+
+    /* Affiche l'œil au survol de la carte OU lorsque la carte est sélectionnée */
+    .drawflow-node:hover .drawflow-node-eye-btn,
+    .drawflow-node.selected .drawflow-node-eye-btn {
+      display: flex;
+    }
+
+    /* Alignement du titre de la carte et du badge */
+    .drawflow-node-title {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Style du badge de nombre de livrables */
+    .drawflow-node-liv-badge {
+      background: #eaf2f8;
+      color: #2980b9;
+      border: 1px solid #d4e6f1;
+      border-radius: 12px;
+      padding: 2px 6px;
+      font-size: 12px;
+      font-weight: bold;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
 
     /* --- REGLES POUR L'EXPORT PDF NATIVE --- */
     @media print {
@@ -271,17 +348,16 @@
       </div>
     </div>
     
-    <!-- <div class="affaire-actions-card">
+    <div class="affaire-actions-card">
       <label>🛃 Actions sur l'affaire</label>
       <button id="btn-add-livrable" class="btn-text-add" onclick="openModal('livrable')">📃 + Nouveau livrable</button>
-    </div> -->
+    </div>
     
     <div class="affaire-infos-card">
       <label>ℹ️ Infos sur l'affaire</label>
       <button id="btn-add-livrable" class="btn-text-add" onclick="openModal('livrable')" style="width:100%;">
         <span style="display:flex; align-items:center; gap:5px;">📃 + Nouveau livrable</span> 
       </button>
-
       <button id="btn-add-contact" class="btn-text-add" onclick="openModal('contact_affaire')" style="width:100%;">
         <span style="display:flex; align-items:center; gap:5px;">👤 Contacts client</span> 
         <span id="badge-contact" class="btn-badge" style="display:none;">0</span>
@@ -380,8 +456,20 @@
       </div>
     </div>
   </div>
-  <script>
-     const clientSel = document.getElementById('client-select');
+
+  <!-- Modal Stacked (Livrables par-dessus les Affaires) -->
+  <div id="modal-stacked" class="modal-overlay" style="z-index: 10005;">
+    <div id="modal-box-stacked" class="modal-content large">
+      <h3 id="modal-title-stacked">Titre</h3>
+      <div id="modal-body-stacked" class="full-height"></div>
+      <div class="modal-actions" id="modal-actions-container-stacked">
+        <button class="btn-cancel" onclick="closeStackedModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+   const clientSel = document.getElementById('client-select');
     const contratSel = document.getElementById('contrat-select');
     const projetSel = document.getElementById('projet-select');
     const affaireSel = document.getElementById('affaire-select');
@@ -905,6 +993,7 @@
 
     function closeModal() {
       document.getElementById('modal').style.display = 'none';
+      document.getElementById('modal').style.zIndex = '10000';
       document.getElementById('modal-box').classList.remove('large', 'medium');
       document.getElementById('modal-body').classList.remove('full-height');
       document.getElementById('modal-actions-container').style.display = 'flex';
@@ -921,14 +1010,20 @@
     // =====================================================================
     // MODALES PRINCIPALES
     // =====================================================================
-    window.openModal = function (type, itemId = null) {
-      const modal = document.getElementById('modal');
-      const box = document.getElementById('modal-box');
-      const title = document.getElementById('modal-title');
-      const body = document.getElementById('modal-body');
-      const saveBtn = document.getElementById('modal-save-btn');
-      const actionsContainer = document.getElementById('modal-actions-container');
+    window.openModal = function (type, itemId = null, useStacked = false) {
+      const isStacked = (type === 'drawflow_map_livrables' && useStacked);
+      
+      const modal = isStacked ? document.getElementById('modal-stacked') : document.getElementById('modal');
+      const box = isStacked ? document.getElementById('modal-box-stacked') : document.getElementById('modal-box');
+      const title = isStacked ? document.getElementById('modal-title-stacked') : document.getElementById('modal-title');
+      const body = isStacked ? document.getElementById('modal-body-stacked') : document.getElementById('modal-body');
+      const saveBtn = isStacked ? null : document.getElementById('modal-save-btn');
+      const actionsContainer = isStacked ? document.getElementById('modal-actions-container-stacked') : document.getElementById('modal-actions-container');
 
+      const isStackedOpen = (document.getElementById('modal-stacked').style.display === 'flex');
+      if (isStackedOpen && !isStacked) {
+        document.getElementById('modal').style.zIndex = '10015';
+      }
       // NOUVEAU : Réinitialiser le bouton Annuler par défaut à chaque ouverture
       const cancelBtn = document.querySelector('#modal-actions-container .btn-cancel');
       if (cancelBtn) cancelBtn.onclick = closeModal;
@@ -945,9 +1040,11 @@
       body.style.flexDirection = "column";
       body.style.gap = "10px";
       actionsContainer.style.display = "flex";
-      saveBtn.style.display = "inline-block";
-      saveBtn.disabled = false;
-      saveBtn.textContent = "Enregistrer";
+      if (saveBtn) {
+        saveBtn.style.display = "inline-block";
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Enregistrer";
+      }
       modal.style.display = 'flex';
 
       // --- MODAL: DRAWFLOW MAP (NOUVEAU) ---
@@ -1057,15 +1154,24 @@
               // Echappement des quotes pour l'attribut title
               const safeLabel = label.replace(/"/g, '&quot;');
 
+              const countLivrables = tableData.livrables.filter(l => l.affaire_liee === rec.id).length;
+
+              // MODIFICATION : Ajouter le div "drawflow-node-eye-btn" à l'intérieur du htmlContent
               const htmlContent = `
                 <div class="drawflow-card-content" ondblclick="window.returnToProjetMap = true; openModal('edit_affaire', ${rec.id})" style="cursor: pointer;" title="Double-cliquez pour modifier cette affaire">
-                  <div class="drawflow-node-title" title="${safeLabel}">${label}</div>
+                  <div class="drawflow-node-title" title="${safeLabel}">
+                    <span>${label}</span>
+                    <span class="drawflow-node-liv-badge" title="${countLivrables} livrable(s)">${countLivrables} livrables</span>
+                  </div>
                   <div class="drawflow-node-details">
                     <div class="drawflow-node-detail"><strong>Réf :</strong> <span>${refEfficy}</span></div>
                     <div class="drawflow-node-detail"><strong>Resp :</strong> <span>${charge}</span></div>
                     <div class="drawflow-node-detail"><strong>Rating :</strong> <span class="drawflow-rating-badge">${rating}</span></div>
                   </div>
+                  <!-- Nouveau bouton œil -->
+                  <div class="drawflow-node-eye-btn" onclick="event.stopPropagation(); openLivrablesMapFromNode(${rec.id})" title="Voir le canva des livrables">👁️</div>
                 </div>
+
               `;
 
               const drawflowId = editor.addNode('affaire', 1, 1, item.x, item.y, 'node-affaire', { gristId: rec.id }, htmlContent);
@@ -1169,7 +1275,7 @@
         title.textContent = `🗺️ Carte des livrables de l'affaire : ${affaire.nom_affaire || ''}`;
         box.classList.add('large');
         body.classList.add('full-height');
-        saveBtn.style.display = 'none'; // Pas de bouton sauvegarder (temps réel)
+        if (saveBtn) saveBtn.style.display = 'none';
 
         // On filtre uniquement les livrables liés à l'affaire sélectionnée
         const livrablesDeLAffaire = tableData.livrables.filter(l => l.affaire_liee === aId);
@@ -1189,17 +1295,17 @@
             </div>
             <!-- NOUVEAU BOUTON -->
             <div style="margin-left: auto;">
-              <button class="btn-text-add" onclick="window.returnToMap = true; openModal('livrable');">📃 + Nouveau livrable</button>
+              <button class="btn-text-add" onclick="window.triggerAddLivrableFromMap();">📃 + Nouveau livrable</button>
             </div>
           </div>
           
           <!-- CANEVAS DRAWFLOW -->
           <div style="position: relative; width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
-            <div id="drawflow-container" style="flex:1;"></div>
+            <div id="drawflow-container-livrables" style="flex:1;"></div>
             <div class="drawflow-toolbar">
-              <button id="df-zoom-in" title="Zoomer">+</button>
-              <button id="df-zoom-out" title="Dézoomer">-</button>
-              <button id="df-zoom-reset" title="Réinitialiser la vue">⟲</button>
+              <button id="df-liv-zoom-in" title="Zoomer">+</button>
+              <button id="df-liv-zoom-out" title="Dézoomer">-</button>
+              <button id="df-liv-zoom-reset" title="Réinitialiser la vue">⟲</button>
             </div>
           </div>
         `;
@@ -1265,7 +1371,7 @@
         setTimeout(() => window.recalcAffaireSimulation(), 100);
 
         setTimeout(() => {
-          const container = document.getElementById("drawflow-container");
+          const container = document.getElementById("drawflow-container-livrables");
           if (!container) return;
           
           const editor = new Drawflow(container);
@@ -1276,7 +1382,7 @@
             return ' M ' + start_pos_x + ' ' + start_pos_y + ' C ' + start_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + center_y + ' ' + end_pos_x + ' ' + end_pos_y;
           }
           
-          document.getElementById('drawflow-container').addEventListener('contextmenu', e => e.preventDefault());
+          document.getElementById('drawflow-container-livrables').addEventListener('contextmenu', e => e.preventDefault());
           editor.remove_node_key = '';
 
           let gristToDrawflow = {};
@@ -1295,6 +1401,7 @@
           }
 
           function rebuildDrawflowCanvasLivrables(records) {
+            
             editor.clear();
             gristToDrawflow = {}; drawflowToGrist = {};
             
@@ -1319,7 +1426,7 @@
               const indice = rec.indice || 'Ø';
 
               const htmlContent = `
-                <div class="drawflow-card-content" ondblclick="window.returnToMap = true; openModal('edit_livrable', ${rec.id})" style="cursor: pointer;" title="Double-cliquez pour modifier ce livrable">
+                <div class="drawflow-card-content" ondblclick="window.triggerEditFromLivrablesMap(${rec.id})" style="cursor: pointer;" title="Double-cliquez pour modifier ce livrable">
                   <div class="drawflow-node-title" title="${safeLabel}">${label}</div>
                   <div class="drawflow-node-details">
                     <div class="drawflow-node-detail"><strong>Type :</strong> <span>${typeName}</span></div>
@@ -1421,14 +1528,18 @@
           });
 
           // Contrôles Zoom
-          document.getElementById('df-zoom-in').addEventListener('click', () => editor.zoom_in());
-          document.getElementById('df-zoom-out').addEventListener('click', () => editor.zoom_out());
-          document.getElementById('df-zoom-reset').addEventListener('click', () => {
+          document.getElementById('df-liv-zoom-in').addEventListener('click', () => editor.zoom_in());
+          document.getElementById('df-liv-zoom-out').addEventListener('click', () => editor.zoom_out());
+          document.getElementById('df-liv-zoom-reset').addEventListener('click', () => {
             editor.zoom = 1; editor.zoom_refresh(); editor.canvas_x = 0; editor.canvas_y = 0;
             editor.precanvas.style.transform = "translate(0px, 0px) scale(1)";
           });
 
-          window.currentDrawflowEditor = editor;
+          if (isStacked) {
+            window.stackedDrawflowEditor = editor;
+          } else {
+            window.currentDrawflowEditor = editor;
+          }
 
         }, 150);
       }
@@ -1609,11 +1720,22 @@
 
       // --- MODAL: LIVRABLE ---
       else if (type === 'livrable' || type === 'edit_livrable') {
-        if (window.returnToMap) {
-            cancelBtn.onclick = () => { 
-                window.returnToMap = false; 
-                openModal('drawflow_map_livrables'); 
-            };
+        // Redirection au clic sur Annuler
+        cancelBtn.onclick = () => { 
+          if (window.returnToMapStacked) {
+            window.returnToMapStacked = false;
+            // 1. Restaurer la carte des affaires en dessous
+            openModal('drawflow_map');
+            // 2. Ré-afficher la carte des livrables empilée au premier plan
+            setTimeout(() => {
+              openModal('drawflow_map_livrables', null, true);
+            }, 150);
+          } else if (window.returnToMap) {
+            window.returnToMap = false;
+            openModal('drawflow_map_livrables');
+          } else {
+            closeModal();
+          }
         };
         const affId = parseInt(affaireSel.value);
         if (!affId && type === 'livrable') { alert("Veuillez sélectionner une Affaire."); return closeModal(); }
@@ -1764,16 +1886,24 @@
           }
           
           await refreshData(true);
-          saveBtn.disabled = false;
-          
-          // Si on vient de la carte Drawflow, on y retourne !
-          if (window.returnToMap) {
-              window.returnToMap = false;
-              openModal('drawflow_map_livrables');
-          } else {
-              closeModal();
-          }
-        };
+            saveBtn.disabled = false;
+            
+            // --- REDIRECTION DE RETOUR APRÈS ENREGISTREMENT ---
+            if (window.returnToMapStacked) {
+                window.returnToMapStacked = false;
+                // 1. Restaurer la carte des affaires en dessous
+                openModal('drawflow_map');
+                // 2. Ré-afficher la carte des livrables empilée au premier plan
+                setTimeout(() => {
+                  openModal('drawflow_map_livrables', null, true);
+                }, 150);
+            } else if (window.returnToMap) {
+                window.returnToMap = false;
+                openModal('drawflow_map_livrables');
+            } else {
+                closeModal();
+            }
+          };
       }
 
       // --- MODAL: ESTIMATION DES RESSOURCES ---
@@ -3062,6 +3192,106 @@
       };
     };
 
+  // Fermeture de la modale principale (Canva, formulaires...) au clic extérieur
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
+
+  // Fermeture de la sous-modale d'édition de tâche au clic extérieur
+  document.getElementById('task-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      cancelTaskModal();
+    }
+  });
+
+  // Ouvre le canva des livrables sans fermer le canva des affaires
+window.openLivrablesMapFromNode = function(affaireId) {
+  affaireSel.value = affaireId;
+  affaireSel.dispatchEvent(new Event('change'));
+  
+  setTimeout(() => {
+    openModal('drawflow_map_livrables', null, true); // "true" active la modale empilée
+  }, 100);
+};
+
+// Ferme uniquement la modale empilée des livrables
+window.closeStackedModal = function() {
+  document.getElementById('modal-stacked').style.display = 'none';
+  if (window.stackedDrawflowEditor) {
+     window.stackedDrawflowEditor.clear();
+     window.stackedDrawflowEditor = null;
+  }
+};
+
+// Fermeture de la modale empilée au clic extérieur
+document.getElementById('modal-stacked').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeStackedModal();
+  }
+});
+
+// Gestion de la touche Échap pour fermer les modales ouvertes (du premier au arrière-plan)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' || e.key === 'Esc') {
+    const taskModal = document.getElementById('task-modal');
+    const stackedModal = document.getElementById('modal-stacked');
+    const mainModal = document.getElementById('modal');
+
+    // On ferme d'abord l'édition de tâche si elle est ouverte
+    if (taskModal && taskModal.style.display === 'flex') {
+      cancelTaskModal();
+    } 
+    // Sinon, on ferme la carte des livrables si elle est ouverte
+    else if (stackedModal && stackedModal.style.display === 'flex') {
+      closeStackedModal();
+    } 
+    // Sinon, on ferme la modale principale standard
+    else if (mainModal && mainModal.style.display === 'flex') {
+      closeModal();
+    }
+  }
+});
+
+
+// Gérer le double-clic sur un livrable pour masquer le canva et ouvrir le formulaire d'édition
+window.triggerEditFromLivrablesMap = function(livId) {
+  const isStackedOpen = (document.getElementById('modal-stacked').style.display === 'flex');
+  
+  if (isStackedOpen) {
+    // Mode Empilé : on mémorise le retour empilé et on masque temporairement le canva des livrables
+    window.returnToMapStacked = true;
+    document.getElementById('modal-stacked').style.display = 'none';
+  } else {
+    // Mode Standard : on mémorise le retour classique et closeModal fermera le canva des livrables
+    window.returnToMap = true;
+  }
+  
+  // Ouvrir le formulaire d'édition dans la modale principale
+  openModal('edit_livrable', livId);
+};
+
+
+
+// Gérer le clic de création d'un nouveau livrable depuis la carte
+window.triggerAddLivrableFromMap = function() {
+  const isStackedOpen = (document.getElementById('modal-stacked').style.display === 'flex');
+  
+  if (isStackedOpen) {
+    // Mode Empilé : on mémorise le retour empilé et on masque temporairement le canva des livrables
+    window.returnToMapStacked = true;
+    document.getElementById('modal-stacked').style.display = 'none';
+  } else {
+    // Mode Standard : on mémorise le retour classique
+    window.returnToMap = true;
+  }
+  
+  // Ouvrir le formulaire de création dans la modale principale
+  openModal('livrable');
+};
+
+
     grist.ready({ requiredAccess: 'full', allowSelectBy: true });
     grist.onRecords(async () => {
       if (isInternalChange) return;
@@ -3069,6 +3299,7 @@
       if (isFirstLoad) { restoreSelection(); isFirstLoad = false; }
     });
 
-  </script>
+
+</script>
 </body>
 </html>
