@@ -44,7 +44,7 @@
     /* Boutons */
     .add-btn { background: var(--primary); color: white; border: none; border-radius: 4px; width: 34px; cursor: pointer; font-size: 18px; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: background 0.2s; flex-shrink: 0; }
     .add-btn:hover:not(:disabled) { background: var(--primary-hover); }
-    .add-btn:disabled { background: #bdc3c7; cursor: not-allowed; } 
+    .add-btn:disabled { background: #bdc3c7 !important; cursor: not-allowed; }
     
     .btn-text-add { background: var(--primary); color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s; display: inline-flex; align-items: center; gap: 5px; }
     .btn-text-add:hover:not(:disabled) { background: #138a72; }
@@ -342,7 +342,14 @@
         <select id="affaire-select" class="search-input"><option value="">Choisir...</option></select>
         <button class="add-btn" onclick="openModal('affaire')" title="Créer une affaire">+</button>
         <button class="add-btn" id="btn-edit-affaire" onclick="openModal('edit_affaire')" title="Modifier l'affaire sélectionnée" disabled>✏️</button>
-        <button class="add-btn" id="btn-map-projet" onclick="openModal('drawflow_map')" title="Carte des affaires du projet" style="background-color: var(--secondary);" disabled>🗺️</button>
+        <button class="add-btn" id="btn-map-projet" onclick="openModal('drawflow_map')" title="Carte des affaires du projet" style="background-color: var(--secondary);" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+            <rect x="8" y="2" width="8" height="5" rx="1" ry="1"></rect>
+            <rect x="2" y="17" width="8" height="5" rx="1" ry="1"></rect>
+            <rect x="14" y="17" width="8" height="5" rx="1" ry="1"></rect>
+            <path d="M12 7v5M12 12H6v5M12 12h6v5"></path>
+          </svg>
+        </button>
       </div>
     </div>
     
@@ -368,7 +375,15 @@
         <span style="display:flex; align-items:center; gap:5px;">💲 Suivi économique</span> 
         <span id="badge-suivi" class="btn-badge" style="display:none;">0</span>
       </button>
-      <button class="add-btn" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary); width: 100%;" disabled>🗺️</button>
+      <button class="add-btn" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary); width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="2" width="8" height="5" rx="1" ry="1"></rect>
+          <rect x="2" y="17" width="8" height="5" rx="1" ry="1"></rect>
+          <rect x="14" y="17" width="8" height="5" rx="1" ry="1"></rect>
+          <path d="M12 7v5M12 12H6v5M12 12h6v5"></path>
+        </svg>
+        <span style="font-size: 13px; font-weight: bold;">Carte des livrables</span>
+      </button>
     </div>
   </div>
 
@@ -1198,6 +1213,7 @@
               Object.keys(gristToDrawflow).forEach(gristId => {
                 editor.updateConnectionNodes('node-' + gristToDrawflow[gristId]);
               });
+              fitDrawflowToScreen(editor); // <-- Ajuste le zoom et centre automatiquement
             }, 120);
           }
 
@@ -1255,8 +1271,7 @@
           document.getElementById('df-zoom-in').addEventListener('click', () => editor.zoom_in());
           document.getElementById('df-zoom-out').addEventListener('click', () => editor.zoom_out());
           document.getElementById('df-zoom-reset').addEventListener('click', () => {
-            editor.zoom = 1; editor.zoom_refresh(); editor.canvas_x = 0; editor.canvas_y = 0;
-            editor.precanvas.style.transform = "translate(0px, 0px) scale(1)";
+            fitDrawflowToScreen(editor);
           });
 
           window.currentDrawflowEditor = editor;
@@ -1458,6 +1473,7 @@
 
             setTimeout(() => {
               Object.keys(gristToDrawflow).forEach(gristId => { editor.updateConnectionNodes('node-' + gristToDrawflow[gristId]); });
+              fitDrawflowToScreen(editor); // <-- Ajuste le zoom et centre automatiquement
             }, 120);
           }
 
@@ -1530,8 +1546,7 @@
           document.getElementById('df-liv-zoom-in').addEventListener('click', () => editor.zoom_in());
           document.getElementById('df-liv-zoom-out').addEventListener('click', () => editor.zoom_out());
           document.getElementById('df-liv-zoom-reset').addEventListener('click', () => {
-            editor.zoom = 1; editor.zoom_refresh(); editor.canvas_x = 0; editor.canvas_y = 0;
-            editor.precanvas.style.transform = "translate(0px, 0px) scale(1)";
+            fitDrawflowToScreen(editor);
           });
 
           if (isStacked) {
@@ -3289,6 +3304,75 @@ window.triggerAddLivrableFromMap = function() {
   // Ouvrir le formulaire de création dans la modale principale
   openModal('livrable');
 };
+
+
+  // Fonction pour ajuster automatiquement le zoom et centrer le canva sur les nœuds présents
+function fitDrawflowToScreen(editor) {
+  const container = editor.container;
+  if (!container) return;
+  
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+  if (containerWidth === 0 || containerHeight === 0) return;
+
+  const moduleName = editor.module || 'Home';
+  const data = editor.drawflow.drawflow[moduleName].data;
+  
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  let hasNodes = false;
+
+  // Calculer les limites géométriques en fonction de la position de chaque nœud
+  for (let id in data) {
+    const node = data[id];
+    const x = node.pos_x;
+    const y = node.pos_y;
+    
+    const nodeEl = document.getElementById('node-' + id);
+    const w = nodeEl ? nodeEl.offsetWidth : 280;
+    const h = nodeEl ? nodeEl.offsetHeight : 180;
+
+    if (x < minX) minX = x;
+    if (x + w > maxX) maxX = x + w;
+    if (y < minY) minY = y;
+    if (y + h > maxY) maxY = y + h;
+    hasNodes = true;
+  }
+
+  if (!hasNodes) return;
+
+  const graphWidth = maxX - minX;
+  const graphHeight = maxY - minY;
+
+  const padding = 55; // Marge de sécurité autour des éléments
+  const availableWidth = containerWidth - padding * 2;
+  const availableHeight = containerHeight - padding * 2;
+
+  // Calcul du zoom idéal
+  let zoom = 1;
+  if (graphWidth > 0 && graphHeight > 0) {
+    zoom = Math.min(availableWidth / graphWidth, availableHeight / graphHeight);
+  }
+  
+  // Encadrer le zoom dans les limites définies de l'éditeur
+  zoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, zoom));
+
+  const graphCenterX = minX + graphWidth / 2;
+  const graphCenterY = minY + graphHeight / 2;
+
+  const containerCenterX = containerWidth / 2;
+  const containerCenterY = containerHeight / 2;
+
+  // Translation du canva pour correspondre au centre du conteneur
+  const canvas_x = containerCenterX - graphCenterX * zoom;
+  const canvas_y = containerCenterY - graphCenterY * zoom;
+
+  editor.zoom = zoom;
+  editor.canvas_x = canvas_x;
+  editor.canvas_y = canvas_y;
+  editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${zoom})`;
+  editor.zoom_last_value = 1;
+  editor.zoom_refresh();
+}
 
 
     grist.ready({ requiredAccess: 'full', allowSelectBy: true });
