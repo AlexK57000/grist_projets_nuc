@@ -17,8 +17,8 @@
     body { margin: 0; padding: 20px; font-family: "Segoe UI", sans-serif; background: #f4f7f6; display: flex; flex-direction: column; gap: 20px; }
 
     /* --- FILTRES HORIZONTAUX --- */
-    .filters-bar { display: flex; flex-direction: row; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
-    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 350px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .filters-bar { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 15px; align-items: stretch; width: 100%; box-sizing: border-box; }
+    .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: calc(22% - 12px); box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .filter-card label { 
   font-size: 11px; font-weight: bold; color: #555; margin-bottom: 8px; 
   text-transform: uppercase; letter-spacing: 0.5px;
@@ -61,7 +61,7 @@
     .affaire-actions-card label { font-size: 11px; font-weight: bold; color: #555; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 
     /* Carte infos affaire */
-    .affaire-infos-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-left: auto; }
+    .affaire-infos-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); width: calc(12% - 12px); box-sizing: border-box; }
     .affaire-infos-card label { font-size: 11px; font-weight: bold; color: #555; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 
     /* --- SECTION LIVRABLES & TACHES --- */
@@ -375,14 +375,14 @@
         <span style="display:flex; align-items:center; gap:5px;">💲 Suivi économique</span> 
         <span id="badge-suivi" class="btn-badge" style="display:none;">0</span>
       </button>
-      <button class="add-btn" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary); width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;" disabled>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <button class="btn-text-add" id="btn-map-affaire" onclick="openModal('drawflow_map_livrables')" title="Carte des dépendances des livrables" style="background-color: var(--secondary); width: 100%; justify-content: center;" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
           <rect x="8" y="2" width="8" height="5" rx="1" ry="1"></rect>
           <rect x="2" y="17" width="8" height="5" rx="1" ry="1"></rect>
           <rect x="14" y="17" width="8" height="5" rx="1" ry="1"></rect>
           <path d="M12 7v5M12 12H6v5M12 12h6v5"></path>
         </svg>
-        <span style="font-size: 13px; font-weight: bold;">Carte des livrables</span>
+        <span>Carte des livrables</span>
       </button>
     </div>
   </div>
@@ -1314,7 +1314,8 @@
           </div>
           
           <!-- CANEVAS DRAWFLOW -->
-          <div style="position: relative; width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
+          <!-- CANEVAS DRAWFLOW -->
+          <div style="position: relative; width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
             <div id="drawflow-container-livrables" style="flex:1;"></div>
             <div class="drawflow-toolbar">
               <button id="df-liv-zoom-in" title="Zoomer">+</button>
@@ -3343,7 +3344,7 @@ function fitDrawflowToScreen(editor) {
   const graphWidth = maxX - minX;
   const graphHeight = maxY - minY;
 
-  const padding = 55; // Marge de sécurité autour des éléments
+  const padding = 10; // Marge de sécurité autour des éléments
   const availableWidth = containerWidth - padding * 2;
   const availableHeight = containerHeight - padding * 2;
 
