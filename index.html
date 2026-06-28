@@ -17,7 +17,7 @@
     body { margin: 0; padding: 20px; font-family: "Segoe UI", sans-serif; background: #f4f7f6; display: flex; flex-direction: column; gap: 20px; }
 
     /* --- FILTRES HORIZONTAUX --- */
-    .filters-bar { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 15px; align-items: stretch; width: 100%; box-sizing: border-box; }
+    .filters-bar { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box; }
     .filter-card { background: white; border: 1px solid #e0e6ed; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: calc(22% - 12px); box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .filter-card label { 
   font-size: 11px; font-weight: bold; color: #555; margin-bottom: 8px; 
@@ -1084,7 +1084,7 @@
           </div>
           
           <!-- CANEVAS DRAWFLOW -->
-          <div style="position: relative; width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
+          <div style="position: relative; width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 500px;">
             <div id="drawflow-container" style="flex:1;"></div>
             <div class="drawflow-toolbar">
               <button id="df-zoom-in" title="Zoomer">+</button>
@@ -3308,72 +3308,94 @@ window.triggerAddLivrableFromMap = function() {
 
 
   // Fonction pour ajuster automatiquement le zoom et centrer le canva sur les nœuds présents
-function fitDrawflowToScreen(editor) {
-  const container = editor.container;
-  if (!container) return;
-  
-  const containerWidth = container.clientWidth;
-  const containerHeight = container.clientHeight;
-  if (containerWidth === 0 || containerHeight === 0) return;
-
-  const moduleName = editor.module || 'Home';
-  const data = editor.drawflow.drawflow[moduleName].data;
-  
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  let hasNodes = false;
-
-  // Calculer les limites géométriques en fonction de la position de chaque nœud
-  for (let id in data) {
-    const node = data[id];
-    const x = node.pos_x;
-    const y = node.pos_y;
+  function fitDrawflowToScreen(editor) {
+    const container = editor.container;
+    if (!container) return;
     
-    const nodeEl = document.getElementById('node-' + id);
-    const w = nodeEl ? nodeEl.offsetWidth : 280;
-    const h = nodeEl ? nodeEl.offsetHeight : 180;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    if (containerWidth === 0 || containerHeight === 0) return;
 
-    if (x < minX) minX = x;
-    if (x + w > maxX) maxX = x + w;
-    if (y < minY) minY = y;
-    if (y + h > maxY) maxY = y + h;
-    hasNodes = true;
+    const moduleName = editor.module || 'Home';
+    const data = editor.drawflow.drawflow[moduleName].data;
+    
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let hasNodes = false;
+
+    // Calculer les limites géométriques en fonction de la position de chaque nœud
+    for (let id in data) {
+      const node = data[id];
+      
+      // CORRECTION CRITIQUE : On remplace la virgule (format français) par un point 
+      // pour que JavaScript calcule la position correctement au lieu de planter et renvoyer 0.
+      const rawX = String(node.pos_x).replace(',', '.');
+      const rawY = String(node.pos_y).replace(',', '.');
+      const x = parseFloat(rawX) || 0;
+      const y = parseFloat(rawY) || 0;
+      
+      const nodeEl = document.getElementById('node-' + id);
+      
+      // Si l'élément est déjà dessiné, on prend ses dimensions réelles, sinon on applique des dimensions par défaut
+      let w = (nodeEl && nodeEl.offsetWidth > 0) ? nodeEl.offsetWidth : 280;
+      let h = (nodeEl && nodeEl.offsetHeight > 0) ? nodeEl.offsetHeight : 150;
+
+      if (x < minX) minX = x;
+      if (x + w > maxX) maxX = x + w;
+      if (y < minY) minY = y;
+      if (y + h > maxY) maxY = y + h;
+      hasNodes = true;
+    }
+
+    if (!hasNodes) return;
+
+    const graphWidth = maxX - minX;
+    const graphHeight = maxY - minY;
+
+    // Marge de sécurité autour des nœuds pour qu'ils ne touchent pas le bord de l'écran
+    const padding = 40; 
+    const availableWidth = containerWidth - padding * 2;
+    const availableHeight = containerHeight - padding * 2;
+
+    // Calcul du zoom idéal
+    let zoom = 1;
+    if (graphWidth > 0 && graphHeight > 0) {
+      zoom = Math.min(availableWidth / graphWidth, availableHeight / graphHeight);
+    }
+    
+    // Encadrer le zoom dans les limites définies de l'éditeur
+    zoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, zoom));
+
+    // Centre géométrique absolu du graphe
+    const graphCenterX = minX + graphWidth / 2;
+    const graphCenterY = minY + graphHeight / 2;
+
+    // Centre du conteneur HTML
+    const containerCenterX = containerWidth / 2;
+    const containerCenterY = containerHeight / 2;
+
+    // Calcul du pan (translation) exact
+    const canvas_x = containerCenterX - (graphCenterX * zoom);
+    const canvas_y = containerCenterY - (graphCenterY * zoom);
+
+    // Application des coordonnées
+    editor.zoom = zoom;
+    editor.canvas_x = canvas_x;
+    editor.canvas_y = canvas_y;
+    
+    // Empêcher la fonction interne de Drawflow de déformer nos calculs
+    editor.zoom_last_value = zoom; 
+    
+    // Forcer le repère visuel (transform-origin) en haut à gauche par sécurité
+    if(editor.precanvas) {
+        editor.precanvas.style.transformOrigin = "0 0";
+        editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${zoom})`;
+    }
+    
+    // Synchroniser avec les évènements de la bibliothèque
+    if (typeof editor.zoom_refresh === 'function') {
+      editor.zoom_refresh();
+    }
   }
-
-  if (!hasNodes) return;
-
-  const graphWidth = maxX - minX;
-  const graphHeight = maxY - minY;
-
-  const padding = 10; // Marge de sécurité autour des éléments
-  const availableWidth = containerWidth - padding * 2;
-  const availableHeight = containerHeight - padding * 2;
-
-  // Calcul du zoom idéal
-  let zoom = 1;
-  if (graphWidth > 0 && graphHeight > 0) {
-    zoom = Math.min(availableWidth / graphWidth, availableHeight / graphHeight);
-  }
-  
-  // Encadrer le zoom dans les limites définies de l'éditeur
-  zoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, zoom));
-
-  const graphCenterX = minX + graphWidth / 2;
-  const graphCenterY = minY + graphHeight / 2;
-
-  const containerCenterX = containerWidth / 2;
-  const containerCenterY = containerHeight / 2;
-
-  // Translation du canva pour correspondre au centre du conteneur
-  const canvas_x = containerCenterX - graphCenterX * zoom;
-  const canvas_y = containerCenterY - graphCenterY * zoom;
-
-  editor.zoom = zoom;
-  editor.canvas_x = canvas_x;
-  editor.canvas_y = canvas_y;
-  editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${zoom})`;
-  editor.zoom_last_value = 1;
-  editor.zoom_refresh();
-}
 
 
     grist.ready({ requiredAccess: 'full', allowSelectBy: true });
