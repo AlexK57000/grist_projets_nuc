@@ -481,9 +481,8 @@
       </div>
     </div>
   </div>
-
 <script>
-   const clientSel = document.getElementById('client-select');
+     const clientSel = document.getElementById('client-select');
     const contratSel = document.getElementById('contrat-select');
     const projetSel = document.getElementById('projet-select');
     const affaireSel = document.getElementById('affaire-select');
@@ -1101,6 +1100,8 @@
           
           const editor = new Drawflow(container);
           editor.start();
+          // ACTIVER LE ZOOM SUR LE POINTEUR ICI
+          enablePointerZoomOnWheel(editor, "drawflow-container");
 
           editor.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y, curvature_value, type) {
             const center_y = ((end_pos_y - start_pos_y) / 2) + start_pos_y;
@@ -1268,8 +1269,8 @@
             await updateDrawflowGristRecord(gristId, { pos_x: node.pos_x, pos_y: node.pos_y });
           });
 
-          document.getElementById('df-zoom-in').addEventListener('click', () => editor.zoom_in());
-          document.getElementById('df-zoom-out').addEventListener('click', () => editor.zoom_out());
+          document.getElementById('df-zoom-in').addEventListener('click', () => zoomCentered(editor, true));
+          document.getElementById('df-zoom-out').addEventListener('click', () => zoomCentered(editor, false));
           document.getElementById('df-zoom-reset').addEventListener('click', () => {
             fitDrawflowToScreen(editor);
           });
@@ -1391,6 +1392,9 @@
           
           const editor = new Drawflow(container);
           editor.start();
+
+          // ACTIVER LE ZOOM SUR LE POINTEUR ICI
+          enablePointerZoomOnWheel(editor, "drawflow-container-livrables");
 
           editor.createCurvature = function(start_pos_x, start_pos_y, end_pos_x, end_pos_y) {
             const center_y = ((end_pos_y - start_pos_y) / 2) + start_pos_y;
@@ -1544,8 +1548,9 @@
           });
 
           // Contrôles Zoom
-          document.getElementById('df-liv-zoom-in').addEventListener('click', () => editor.zoom_in());
-          document.getElementById('df-liv-zoom-out').addEventListener('click', () => editor.zoom_out());
+          // Contrôles Zoom
+          document.getElementById('df-liv-zoom-in').addEventListener('click', () => zoomCentered(editor, true));
+          document.getElementById('df-liv-zoom-out').addEventListener('click', () => zoomCentered(editor, false));
           document.getElementById('df-liv-zoom-reset').addEventListener('click', () => {
             fitDrawflowToScreen(editor);
           });
@@ -3398,14 +3403,99 @@ window.triggerAddLivrableFromMap = function() {
   }
 
 
+
+  function zoomCentered(editor, zoomIn) {
+  const container = editor.container;
+  if (!container) return;
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+  if (containerWidth === 0 || containerHeight === 0) return;
+
+  const containerCenterX = containerWidth / 2;
+  const containerCenterY = containerHeight / 2;
+
+  // Identification du point virtuel du canva situé actuellement au centre de l'écran
+  const currentGraphCenterX = (containerCenterX - editor.canvas_x) / editor.zoom;
+  const currentGraphCenterY = (containerCenterY - editor.canvas_y) / editor.zoom;
+
+  const zoomStep = 0.1;
+  let newZoom = editor.zoom + (zoomIn ? zoomStep : -zoomStep);
+  newZoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, newZoom));
+
+  // Ajustement de la translation pour garder ce même point virtuel au centre de l'écran
+  const canvas_x = containerCenterX - (currentGraphCenterX * newZoom);
+  const canvas_y = containerCenterY - (currentGraphCenterY * newZoom);
+
+  editor.zoom = newZoom;
+  editor.canvas_x = canvas_x;
+  editor.canvas_y = canvas_y;
+  editor.zoom_last_value = newZoom;
+
+  if (editor.precanvas) {
+    editor.precanvas.style.transformOrigin = "0 0";
+    editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${newZoom})`;
+  }
+
+  if (typeof editor.zoom_refresh === 'function') {
+    editor.zoom_refresh();
+  }
+}
+
+
+
+
+function enablePointerZoomOnWheel(editor, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.addEventListener('wheel', function(e) {
+    // Par défaut, nous conservons le raccourci standard : Ctrl + Molette pour zoomer
+    // Si vous souhaitez zoomer SANS appuyer sur Ctrl, retirez simplement la condition "if (e.ctrlKey)"
+    if (e.ctrlKey) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Coordonnées du point sous le curseur dans l'espace virtuel du canva
+      const graphX = (mouseX - editor.canvas_x) / editor.zoom;
+      const graphY = (mouseY - editor.canvas_y) / editor.zoom;
+
+      // Calcul du nouveau niveau de zoom
+      const zoomStep = 0.05; // Pas de zoom à chaque cran de molette (ajustable)
+      let newZoom = editor.zoom + (e.deltaY < 0 ? zoomStep : -zoomStep);
+      newZoom = Math.max(editor.zoom_min || 0.3, Math.min(editor.zoom_max || 1.6, newZoom));
+
+      // Calcul des nouvelles translations pour maintenir le point virtuel sous la souris
+      const canvas_x = mouseX - (graphX * newZoom);
+      const canvas_y = mouseY - (graphY * newZoom);
+
+      editor.zoom = newZoom;
+      editor.canvas_x = canvas_x;
+      editor.canvas_y = canvas_y;
+      editor.zoom_last_value = newZoom;
+
+      if (editor.precanvas) {
+        editor.precanvas.style.transformOrigin = "0 0";
+        editor.precanvas.style.transform = `translate(${canvas_x}px, ${canvas_y}px) scale(${newZoom})`;
+      }
+
+      if (typeof editor.zoom_refresh === 'function') {
+        editor.zoom_refresh();
+      }
+    }
+  }, { capture: true, passive: false }); // "capture: true" intercepte l'événement avant Drawflow
+}
+
+
     grist.ready({ requiredAccess: 'full', allowSelectBy: true });
     grist.onRecords(async () => {
       if (isInternalChange) return;
       await refreshData(true);
       if (isFirstLoad) { restoreSelection(); isFirstLoad = false; }
     });
-
-
 </script>
 </body>
 </html>
